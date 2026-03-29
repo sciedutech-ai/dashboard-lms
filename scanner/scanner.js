@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function goBack() {
     if(html5QrcodeScanner) html5QrcodeScanner.clear(); 
-    window.location.href = '../teacher.html'; 
+    window.location.href = '/dashboard-lms/dashboard-teacher/teacher.html'; 
 }
 
 // --- 4. TAB NAVIGATION (DUAL MODE) ---
