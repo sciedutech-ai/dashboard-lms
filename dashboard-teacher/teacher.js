@@ -13,6 +13,7 @@ try { if (!firebase.apps.length) firebase.initializeApp(firebaseConfig); } catch
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+
 // --- 2. STATE & DATA ---
 let TEACHER_DATA = null; 
 let TEACHER_DOC_ID = null; 
@@ -116,14 +117,37 @@ function renderNavigation() {
     lucide.createIcons();
 }
 
-function setTab(tabId) {
-    currentTab = tabId; const navItem = NAV_ITEMS.find(n => n.id === tabId); document.getElementById('page-title').innerText = navItem ? navItem.label : 'Portal Guru';
-    const sidebar = document.getElementById('sidebar'); if (sidebar && sidebar.classList.contains('open')) toggleMobileMenu();
-    renderNavigation(); renderContent();
+function toggleMobileMenu() { 
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobile-overlay'); 
+    
+    if (sidebar && overlay) { 
+        // Menggeser sidebar masuk dan keluar secara eksplisit
+        sidebar.classList.toggle('-translate-x-full');
+        sidebar.classList.toggle('translate-x-0');
+        
+        // Memunculkan/menyembunyikan layar gelap
+        overlay.classList.toggle('hidden'); 
+    } 
 }
 
-function toggleMobileMenu() { const sidebar = document.getElementById('sidebar'), overlay = document.getElementById('mobile-overlay'); if (sidebar && overlay) { sidebar.classList.toggle('open'); overlay.classList.toggle('hidden'); } }
-
+function setTab(tabId) {
+    currentTab = tabId; 
+    const navItem = NAV_ITEMS.find(n => n.id === tabId); 
+    document.getElementById('page-title').innerText = navItem ? navItem.label : 'Portal Guru';
+    
+    // Perbaikan: Tutup sidebar otomatis di mobile setelah menu diklik
+    const sidebar = document.getElementById('sidebar'); 
+    if (sidebar && window.innerWidth < 1024) { 
+        // Jika sidebar sedang terbuka (berada di posisi translate-x-0), maka tutup!
+        if (sidebar.classList.contains('translate-x-0')) {
+            toggleMobileMenu();
+        }
+    }
+    
+    renderNavigation(); 
+    renderContent();
+}
 // --- 5. VIEW RENDERING ---
 function renderContent() {
     const container = document.getElementById('main-content'); if (!container) return;
@@ -143,7 +167,11 @@ function renderContent() {
 }
 
 function updateActiveViewData() {
-    if (currentTab === 'dashboard') { const cS = document.getElementById('dash-schedules'); if(cS) cS.innerText = mySchedules.length; const cE = document.getElementById('dash-exams'); if(cE) cE.innerText = myExams.length; } 
+    if (currentTab === 'dashboard') { 
+    const cS = document.getElementById('dash-schedules'); if(cS) cS.innerText = mySchedules.length; 
+    const cE = document.getElementById('dash-exams'); if(cE) cE.innerText = myExams.length; 
+    cekAksesWaliKelas(); // Panggil pengecekan di sini
+}
     else if (currentTab === 'schedule') { renderSchedules(); }
     else if (currentTab === 'active-class') { renderActiveClassList(); }
     else if (currentTab === 'syllabus') { renderSyllabusTable(); } 
@@ -448,7 +476,93 @@ async function submitLetter() { const type = document.getElementById('letterType
 function deleteLetter(id) { Swal.fire({ title: 'Batalkan Pengajuan?', text: 'Pengajuan ini akan ditarik kembali.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then((r) => { if (r.isConfirmed) db.collection("letters").doc(id).delete().then(() => Swal.fire('Dibatalkan', '', 'success')); }); }
 
 // --- 7. HTML GENERATORS ---
-function getDashboardHTML() { return `<div class="space-y-6 animate-fade-in"><div class="bg-gradient-to-br from-purple-700 to-indigo-800 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden"><div class="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4"><i data-lucide="graduation-cap" width="150" height="150"></i></div><h2 class="text-3xl font-bold mb-2">Selamat Datang, ${TEACHER_DATA ? TEACHER_DATA.fullName.split(',')[0] : 'Guru'}!</h2><p class="text-purple-100">Mata Pelajaran: <strong>${TEACHER_DATA ? TEACHER_DATA.subject : '-'}</strong></p></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('schedule')"><div><p class="text-slate-500 font-medium mb-1">Kelas Diampu</p><h3 class="text-3xl font-bold text-slate-800" id="dash-schedules">-</h3></div><div class="p-4 bg-orange-100 text-orange-600 rounded-xl"><i data-lucide="calendar-clock" width="32"></i></div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('grades')"><div><p class="text-slate-500 font-medium mb-1">Input Nilai</p><h3 class="text-3xl font-bold text-slate-800"><i data-lucide="check-square" width="28"></i></h3></div><div class="p-4 bg-green-100 text-green-600 rounded-xl"><i data-lucide="clipboard-list" width="32"></i></div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('cbt')"><div><p class="text-slate-500 font-medium mb-1">Ujian (CBT)</p><h3 class="text-3xl font-bold text-slate-800" id="dash-exams">-</h3></div><div class="p-4 bg-blue-100 text-blue-600 rounded-xl"><i data-lucide="monitor-check" width="32"></i></div></div></div></div>`; }
+// --- 7. HTML GENERATORS ---
+function getDashboardHTML() { 
+    return `
+    <div class="space-y-6 animate-fade-in">
+        <div class="bg-gradient-to-br from-purple-700 to-indigo-800 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+            <div class="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                <i data-lucide="graduation-cap" width="150" height="150"></i>
+            </div>
+            <h2 class="text-3xl font-bold mb-2">Selamat Datang, ${TEACHER_DATA ? TEACHER_DATA.fullName.split(',')[0] : 'Guru'}!</h2>
+            <p class="text-purple-100">Mata Pelajaran: <strong>${TEACHER_DATA ? TEACHER_DATA.subject : '-'}</strong></p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('schedule')">
+                <div>
+                    <p class="text-slate-500 font-medium mb-1">Kelas Diampu</p>
+                    <h3 class="text-3xl font-bold text-slate-800" id="dash-schedules">-</h3>
+                </div>
+                <div class="p-4 bg-orange-100 text-orange-600 rounded-xl">
+                    <i data-lucide="calendar-clock" width="32"></i>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('grades')">
+                <div>
+                    <p class="text-slate-500 font-medium mb-1">Input Nilai</p>
+                    <h3 class="text-3xl font-bold text-slate-800"><i data-lucide="check-square" width="28"></i></h3>
+                </div>
+                <div class="p-4 bg-green-100 text-green-600 rounded-xl">
+                    <i data-lucide="clipboard-list" width="32"></i>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between hover:shadow-md transition cursor-pointer" onclick="setTab('cbt')">
+                <div>
+                    <p class="text-slate-500 font-medium mb-1">Ujian (CBT)</p>
+                    <h3 class="text-3xl font-bold text-slate-800" id="dash-exams">-</h3>
+                </div>
+                <div class="p-4 bg-blue-100 text-blue-600 rounded-xl">
+                    <i data-lucide="monitor-check" width="32"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="btnAbsensiGerbang" class="hidden bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/30 cursor-pointer transform transition hover:-translate-y-1 hover:shadow-xl mt-2" onclick="bukaAbsensiGerbang()">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <i data-lucide="scan-line" width="24"></i>
+                </div>
+                <span class="px-2 py-1 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">Khusus Wali Kelas</span>
+            </div>
+            <h3 class="text-xl md:text-2xl font-bold mb-1">Scanner Absensi Gerbang</h3>
+            <p class="text-indigo-100 text-sm">Buka sistem scan Barcode/QR untuk mencatat kedatangan siswa perwalian Anda hari ini.</p>
+        </div>
+
+    </div>`; 
+}
+
+// Fungsi untuk mengecek apakah guru adalah Wali Kelas dan memunculkan tombol Gerbang
+function cekAksesWaliKelas() {
+    if (TEACHER_DATA && TEACHER_DATA.homeroomClass) {
+        const btnGerbang = document.getElementById('btnAbsensiGerbang');
+        if (btnGerbang) {
+            btnGerbang.classList.remove('hidden');
+        }
+    }
+}
+
+// Fungsi untuk membuka sistem Absensi Gerbang (Arahkan URL ke file Scanner)
+// Fungsi untuk membuka sistem Absensi Gerbang (Arahkan URL ke folder scanner)
+function bukaAbsensiGerbang() {
+    Swal.fire({
+        title: 'Membuka Scanner Gerbang...',
+        text: 'Menyiapkan modul kamera untuk scan kartu pelajar.',
+        icon: 'info',
+        timer: 1500,
+        showConfirmButton: false,
+        willClose: () => {
+            // Arahkan ke file scanner.html di dalam folder scanner
+            window.location.href = '../scanner/scanner.html'; 
+            
+            // Catatan: Jika kamu ingin scannernya terbuka di Tab Baru (agar dashboard tidak tertutup), 
+            // hapus kode window.location.href di atas, lalu gunakan kode di bawah ini:
+            // window.open('scanner/scanner.html', '_blank');
+        }
+    });
+}
 function getScheduleHTML() { return `<div class="space-y-6 animate-fade-in"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h2 class="text-2xl font-bold text-slate-800">Jadwal & Jurnal Kelas</h2><p class="text-slate-500">Mulai kelas, isi absensi, dan nilai harian siswa</p></div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><table class="w-full text-left border-collapse"><thead class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold"><tr><th class="p-4 border-b border-slate-100">Hari</th><th class="p-4 border-b border-slate-100">Waktu</th><th class="p-4 border-b border-slate-100">Mata Pelajaran & Kelas</th><th class="p-4 border-b border-slate-100">Ruangan</th><th class="p-4 border-b border-slate-100 text-right">Aksi</th></tr></thead><tbody id="mySchedulesBody" class="text-sm divide-y divide-slate-100"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat jadwal...</td></tr></tbody></table></div></div>`; }
 function getActiveClassHTML() { return `<div class="space-y-6 animate-fade-in"><div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200"><div><h2 class="text-xl font-bold text-slate-800">Jurnal Kelas: ${activeClassId}</h2><p class="text-slate-500 text-sm">Mata Pelajaran: <span class="font-bold text-purple-600">${activeClassSubject}</span></p></div><div class="flex gap-2"><button onclick="setTab('schedule')" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition">Batal</button><button onclick="saveClassSession()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition flex items-center gap-2"><i data-lucide="save" width="16"></i> Simpan Sesi</button></div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold"><tr><th class="p-4 border-b border-slate-100 w-10 text-center">No</th><th class="p-4 border-b border-slate-100">Nama Siswa</th><th class="p-4 border-b border-slate-100 w-48">Kehadiran</th><th class="p-4 border-b border-slate-100 w-32">Skor (0-100)</th><th class="p-4 border-b border-slate-100">Keterangan</th></tr></thead><tbody id="activeClassBody" class="text-sm divide-y divide-slate-100"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat data siswa...</td></tr></tbody></table></div></div></div>`; }
 function getGradesHTML() { return `<div class="space-y-6 animate-fade-in"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h2 class="text-2xl font-bold text-slate-800">Input Nilai Akademik</h2><p class="text-slate-500">Mata Pelajaran: <span class="font-bold text-purple-600">${TEACHER_DATA ? TEACHER_DATA.subject : '-'}</span></p></div><div class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold border border-blue-100"><i data-lucide="info" class="inline w-4 h-4 mr-1"></i> Nilai CBT otomatis tersinkron</div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4"><span class="text-sm font-bold text-slate-600">Pilih Kelas:</span><select id="gradeClassFilter" onchange="renderGradesTable()" class="border border-slate-300 rounded-lg px-4 py-1.5 text-sm focus:ring-purple-500 focus:border-purple-500 font-bold text-slate-800"><option value="VII">Kelas VII</option><option value="VIII">Kelas VIII</option><option value="IX">Kelas IX</option></select></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-white text-slate-500 text-xs uppercase font-semibold"><tr><th class="p-4 border-b border-slate-100 w-10 text-center">No</th><th class="p-4 border-b border-slate-100">Nama Siswa</th><th class="p-4 border-b border-slate-100">Mata Pelajaran & Jenis</th><th class="p-4 border-b border-slate-100 w-24 text-center">Skor</th><th class="p-4 border-b border-slate-100 text-right">Aksi</th></tr></thead><tbody id="gradesTableBody" class="text-sm divide-y divide-slate-100"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat data siswa...</td></tr></tbody></table></div></div></div>`; }
