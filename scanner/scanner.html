@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tap Gerbang (Kamera) - SekolahDigi</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+
+    <link rel="stylesheet" href="scanner.css">
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+    
+    <div class="text-center w-full max-w-md">
+        <h1 class="text-3xl md:text-4xl font-black mb-2 tracking-tight text-blue-400">ABSENSI KAMERA</h1>
+        <p class="text-slate-400 text-sm md:text-base mb-6">Arahkan Kamera ke QR Code / Barcode NISN</p>
+        
+        <div id="reader" class="w-full bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700 mb-6"></div>
+        
+        <div id="scanResult" class="scan-box-default mx-auto">
+            <div class="text-slate-500 animate-pulse font-medium">Kamera Siap...</div>
+        </div>
+    </div>
+
+    <script src="scanner.js"></script>
+</body>
+</html>

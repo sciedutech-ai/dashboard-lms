@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Motion Lab - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        
+        .slider-red::-webkit-slider-thumb { border: 2px solid #ef4444; background: #ef4444; }
+        .slider-blue::-webkit-slider-thumb { border: 2px solid #3b82f6; background: #3b82f6; }
+        .slider-green::-webkit-slider-thumb { border: 2px solid #10b981; background: #10b981; }
+
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; border: 1px solid #334155; }
+        
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500 tracking-tight">⚛️ Particle Motion Lab</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Teori Kinetik Gas • Molekul Berinteraksi</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Kinetik</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto text-sm text-slate-300">
+            <h3 class="text-orange-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="microscope"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">1. Manipulasi Variabel Gas</h4>
+                    <p class="text-xs">Gunakan slider untuk mengubah <b>Suhu (T)</b>, <b>Volume Tangki (V)</b>, dan <b>Jumlah Partikel (N)</b>. Perhatikan bagaimana setiap perubahan langsung berdampak pada Tekanan (P) sistem!</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">2. Visualisasi Energi</h4>
+                    <p class="text-xs">Warna partikel merepresentasikan kecepatannya (Energi Kinetik). Biru = lambat/dingin, Merah/Kuning = sangat cepat. Lihat grafik Histogram di kanan untuk melihat Distribusi Maxwell-Boltzmann.</p>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <h4 class="font-bold text-cyan-400 mb-2">⚡ Fitur Advanced</h4>
+                    <p class="text-xs">Aktifkan <b>Slow Motion</b> untuk melihat tumbukan elastis yang detail. Buka <b>Katup Kebocoran</b> untuk melihat bagaimana gas berekspansi ke ruang vakum (Hukum Efusi Graham).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-red-400 font-bold mb-2 text-center">Persamaan Gas Ideal</h3>
+                <p class="text-xs mb-2 text-center">Tekanan (\(P\)) berbanding terbalik dengan Volume (\(V\)), tapi berbanding lurus dengan Suhu (\(T\)) dan Jumlah partikel (\(N\)).</p>
+                <div class="font-mono text-red-300 text-xs bg-slate-950 p-2 rounded text-center border border-red-900">\( P \cdot V = n \cdot R \cdot T \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-orange-400 font-bold mb-2 text-center">Energi Kinetik Gas</h3>
+                <p class="text-xs mb-2 text-center">Suhu gas murni adalah ukuran dari rata-rata energi kinetik pergerakan translasi partikel-partikelnya.</p>
+                <div class="font-mono text-orange-300 text-xs bg-slate-950 p-2 rounded text-center border border-orange-900">\( E_k = \frac{3}{2} k \cdot T \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-blue-400 font-bold mb-2 text-center">Tekanan (Tumbukan)</h3>
+                <p class="text-xs mb-2 text-center">Tekanan terjadi akibat impuls (perubahan momentum) dari miliaran partikel gas yang menabrak dinding wadah.</p>
+                <div class="font-mono text-blue-300 text-[10px] bg-slate-950 p-2 rounded text-center border border-blue-900">\( P = \frac{F}{A} = \frac{\Delta p / \Delta t}{A} \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1500px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-8 flex flex-col gap-4">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[400px] md:h-[480px]">
+                    
+                    <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-4 pointer-events-none">
+                        <div class="glass-panel px-6 py-2 rounded-xl text-center shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tekanan Internal Wadah (P)</p>
+                            <p class="font-mono text-3xl text-emerald-400 font-black drop-shadow-md" id="dispP">0.0 <span class="text-sm">atm</span></p>
+                        </div>
+                    </div>
+
+                    <div class="absolute top-4 left-4 z-20 glass-panel px-3 py-2 rounded-lg flex flex-col gap-1 pointer-events-none">
+                        <div class="flex justify-between gap-4"><span class="text-[10px] font-bold text-slate-400">Total Partikel:</span> <span id="dispN" class="font-mono text-xs text-white">0</span></div>
+                        <div class="flex justify-between gap-4"><span class="text-[10px] font-bold text-slate-400">V_rms (Rata-rata):</span> <span id="dispVrms" class="font-mono text-xs text-yellow-400">0 m/s</span></div>
+                    </div>
+
+                    <div class="absolute bottom-4 left-4 z-20 glass-panel px-4 py-2 rounded-lg border-l-4 border-l-red-500 pointer-events-none">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Suhu Termodinamika (T)</p>
+                        <p class="font-mono text-xl text-red-400 font-bold" id="dispT">300 K</p>
+                    </div>
+
+                    <div class="absolute bottom-4 right-4 z-20 glass-panel px-4 py-2 rounded-lg border-r-4 border-r-blue-500 text-right pointer-events-none">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Volume Ruang (V)</p>
+                        <p class="font-mono text-xl text-blue-400 font-bold" id="dispV">100 L</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="800" height="480" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-slate-500 p-5 shadow-xl grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <div class="space-y-4 md:col-span-2">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-300">Suhu Gas (\(T\))</label>
+                                <span id="valT" class="text-xs font-mono text-red-400 font-bold">300 K</span>
+                            </div>
+                            <input type="range" id="inputT" min="50" max="1000" value="300" step="10" class="slider-red w-full" oninput="updateTargetT()">
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-300">Volume Wadah Kiri (\(V\))</label>
+                                <span id="valV" class="text-xs font-mono text-blue-400 font-bold">100 %</span>
+                            </div>
+                            <input type="range" id="inputV" min="30" max="100" value="100" class="slider-blue w-full" oninput="updateVolume()">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-300">Jumlah Partikel Murni (\(N\))</label>
+                                <span id="valN" class="text-xs font-mono text-green-400 font-bold">100</span>
+                            </div>
+                            <input type="range" id="inputN" min="10" max="250" value="100" step="5" class="slider-green w-full" oninput="updateParticleCount()">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 justify-center border-l border-slate-700 pl-4">
+                        <label class="flex items-center justify-between cursor-pointer p-2 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition border border-slate-600">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-2"><i data-lucide="clock" width="14" class="text-cyan-400"></i> Slow Motion</span>
+                            <input type="checkbox" id="toggleSlow" onchange="toggleSlowMo()" class="w-4 h-4 accent-cyan-500">
+                        </label>
+                        <label class="flex items-center justify-between cursor-pointer p-2 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition border border-slate-600">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-2"><i data-lucide="door-open" width="14" class="text-amber-400"></i> Katup Kebocoran</span>
+                            <input type="checkbox" id="toggleLeak" onchange="toggleLeakage()" class="w-4 h-4 accent-amber-500">
+                        </label>
+                        
+                        <div class="mt-2">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Jenis Gas (Massa Relatif)</label>
+                            <select id="gasType" onchange="changeGasType()" class="w-full bg-slate-700 text-white border border-slate-600 rounded p-1.5 text-xs outline-none focus:border-blue-500">
+                                <option value="1">🎈 Helium (Sangat Ringan)</option>
+                                <option value="4" selected>💨 Oksigen (Sedang)</option>
+                                <option value="10">🛑 Xenon (Sangat Berat)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="activity" class="text-emerald-400" width="14"></i> Tekanan vs Waktu (P-t)</h3>
+                    </div>
+                    <div class="w-full flex-1 min-h-[160px]"><canvas id="chartPt"></canvas></div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="bar-chart-3" class="text-amber-400" width="14"></i> Distribusi Kecepatan</h3>
+                    </div>
+                    <div class="w-full flex-1 min-h-[160px]"><canvas id="chartVelDist"></canvas></div>
+                    <p class="text-[9px] text-slate-500 text-center mt-2">Kurva Maxwell-Boltzmann. Sumbu Y: Jml Partikel | Sumbu X: Kecepatan (m/s)</p>
+                </div>
+                
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2 text-sm"><i data-lucide="server" width="16"></i> Data Praktikum</h3>
+                        <div class="flex gap-2">
+                            <button onclick="recordData()" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1 rounded-lg text-[10px] font-bold border border-blue-500/30 transition">
+                                CATAT
+                            </button>
+                            <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1 rounded-lg text-[10px] font-bold border border-red-500/30 transition">
+                                PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[120px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-[10px] md:text-xs">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-700 text-red-400">Suhu (K)</th>
+                                    <th class="p-2 border-b border-slate-700 text-blue-400">Vol (%)</th>
+                                    <th class="p-2 border-b border-slate-700">Jumlah (N)</th>
+                                    <th class="p-2 border-b border-slate-700 text-emerald-400">Tekanan P (atm)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="4" class="p-2 text-center text-slate-500 font-sans">Belum ada data rekaman.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- PHYSICS STATE ---
+        const R_GAS = 8.314; // Konstanta gas ideal
+        
+        let targetTemp = 300; // Kelvin
+        let currentTemp = 300; // Lerp smoothing
+        let volumePct = 100; // 30% - 100%
+        let boxWidth = canvas.width; // Dinamis
+        let boxHeight = canvas.height;
+        
+        let massRatio = 4; // Helium=1, O2=4, Xenon=10
+        let isSlowMo = false;
+        let isLeaking = false;
+        
+        let particles = [];
+        let numParticlesTarget = 100;
+        
+        // Pressure tracking
+        let wallHits = 0; // Akumulator momentum tumbukan dinding
+        let pressureArr = []; // Moving average
+        let currentPressure = 0; // atm
+        
+        // Data History
+        let chartPt, chartVel;
+        let simTime = 0;
+        let dataHistory = [];
+        let lastChartUpdate = -1;
+
+        // --- CHARTS INITIALIZATION ---
+        function initCharts() {
+            Chart.defaults.color = '#64748b'; Chart.defaults.font.family = 'monospace';
+            
+            // Chart P vs T (Line)
+            chartPt = new Chart(document.getElementById('chartPt').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Tekanan (atm)', borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', data: [], pointRadius: 0, borderWidth: 2, fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { beginAtZero: true, suggestedMax: 5 } } }
+            });
+
+            // Chart Distribusi Kecepatan (Bar/Histogram)
+            chartVel = new Chart(document.getElementById('chartVelDist').getContext('2d'), {
+                type: 'bar',
+                data: { labels: ['0-2', '2-4', '4-6', '6-8', '8-10', '10-12', '12-14', '>14'], datasets: [{ label: 'Jumlah Partikel', backgroundColor: '#f59e0b', data: [0,0,0,0,0,0,0,0], borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: { duration: 100 }, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, max: 80 } } }
+            });
+        }
+
+        // --- PARTICLE LOGIC ---
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.r = 4; // Radius
+                this.m = massRatio;
+                this.randomizeVelocity();
+            }
+            randomizeVelocity() {
+                // Kecepatan sebanding dengan akar Suhu berbanding terbalik akar Massa (v_rms)
+                let speedScale = Math.sqrt(currentTemp / this.m) * 0.2; 
+                let angle = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(angle) * speedScale;
+                this.vy = Math.sin(angle) * speedScale;
+            }
+            getSpeed() { return Math.sqrt(this.vx*this.vx + this.vy*this.vy); }
+            getColor() {
+                // Map speed to color (Blue to Red)
+                let spd = this.getSpeed();
+                let maxExpectedSpd = Math.sqrt(1000 / this.m) * 0.3; // 1000K approx max
+                let hue = Math.max(0, 240 - (spd / maxExpectedSpd) * 240); // 240=blue, 0=red
+                return `hsl(${hue}, 100%, 60%)`;
+            }
+        }
+
+        function spawnParticles(count) {
+            for(let i=0; i<count; i++) {
+                let x = 10 + Math.random() * (boxWidth - 20);
+                let y = 10 + Math.random() * (boxHeight - 20);
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function initSim() {
+            particles = [];
+            spawnParticles(numParticlesTarget);
+            boxWidth = canvas.width * (volumePct/100);
+        }
+
+        // --- CONTROLS ---
+        function updateTargetT() {
+            targetTemp = parseInt(document.getElementById('inputT').value);
+            document.getElementById('valT').innerText = targetTemp + " K";
+        }
+        function updateVolume() {
+            volumePct = parseInt(document.getElementById('inputV').value);
+            document.getElementById('valV').innerText = volumePct + " %";
+            document.getElementById('dispV').innerText = volumePct + " L";
+            boxWidth = canvas.width * (volumePct/100);
+            
+            // Push particles inside if volume shrinks
+            particles.forEach(p => {
+                if (p.x > boxWidth - p.r) p.x = boxWidth - p.r - 2;
+            });
+        }
+        function updateParticleCount() {
+            numParticlesTarget = parseInt(document.getElementById('inputN').value);
+            document.getElementById('valN').innerText = numParticlesTarget;
+        }
+        function changeGasType() {
+            massRatio = parseInt(document.getElementById('gasType').value);
+            particles.forEach(p => p.m = massRatio);
+            // Trigger velocity re-calc based on new mass
+            particles.forEach(p => p.randomizeVelocity()); 
+        }
+        function toggleSlowMo() { isSlowMo = document.getElementById('toggleSlow').checked; }
+        function toggleLeakage() { isLeaking = document.getElementById('toggleLeak').checked; }
+
+        // --- ELASTIC COLLISION LOGIC ---
+        function checkCollisions() {
+            // Tumbukan antar partikel (O(N^2) tapi dioptimasi sederhana)
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p1 = particles[i];
+                    let p2 = particles[j];
+                    
+                    let dx = p2.x - p1.x;
+                    let dy = p2.y - p1.y;
+                    let distSq = dx*dx + dy*dy;
+                    let minDist = p1.r + p2.r;
+                    
+                    if (distSq < minDist*minDist) {
+                        let dist = Math.sqrt(distSq);
+                        if(dist === 0) { dx = 1; dy = 0; dist = 1; } // Mencegah bagi nol
+                        
+                        // Normal vector
+                        let nx = dx / dist;
+                        let ny = dy / dist;
+                        
+                        // Relative velocity
+                        let dvx = p1.vx - p2.vx;
+                        let dvy = p1.vy - p2.vy;
+                        
+                        // Velocity along normal
+                        let pRel = dvx*nx + dvy*ny;
+                        
+                        // Tumbukan menjauh, skip
+                        if(pRel < 0) continue;
+                        
+                        // Elastic collision (m1 = m2, jadi pRel saja)
+                        p1.vx -= pRel * nx;
+                        p1.vy -= pRel * ny;
+                        p2.vx += pRel * nx;
+                        p2.vy += pRel * ny;
+                        
+                        // Pisahkan agar tidak lengket (Penetration resolution)
+                        let pen = minDist - dist;
+                        p1.x -= nx * (pen/2); p1.y -= ny * (pen/2);
+                        p2.x += nx * (pen/2); p2.y += ny * (pen/2);
+                    }
+                }
+            }
+        }
+
+        // --- MAIN LOOP ---
+        function animatePhysics() {
+            // --- TIME STEP & THERMODYNAMICS ---
+            let timeScale = isSlowMo ? 0.1 : 1.0;
+            simTime += 0.016 * timeScale;
+            
+            // Adjust Particle Count Dynamically
+            if(particles.length < numParticlesTarget) spawnParticles(1);
+            if(particles.length > numParticlesTarget && !isLeaking) particles.pop(); // Remove if too many
+
+            // Temperatur transisi (Smooth heating/cooling)
+            let tempDiff = targetTemp - currentTemp;
+            if(Math.abs(tempDiff) > 1) {
+                currentTemp += tempDiff * 0.05 * timeScale;
+                // Rescale kecepatan partikel sesuai rasio suhu
+                let ratio = Math.sqrt(currentTemp / (currentTemp - tempDiff * 0.05 * timeScale));
+                particles.forEach(p => { p.vx *= ratio; p.vy *= ratio; });
+            }
+            
+            document.getElementById('dispT').innerText = currentTemp.toFixed(0) + " K";
+            document.getElementById('dispN').innerText = particles.length;
+
+            // --- PARTICLE MOVEMENT & WALL COLLISION ---
+            let frameWallHits = 0;
+            let sumV2 = 0;
+
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                
+                // Gerak
+                p.x += p.vx * timeScale;
+                p.y += p.vy * timeScale;
+                
+                sumV2 += (p.vx*p.vx + p.vy*p.vy);
+
+                let isEscaped = false;
+
+                // Tumbukan Dinding Kiri/Kanan
+                if (p.x < p.r) { p.x = p.r; p.vx *= -1; frameWallHits += Math.abs(p.vx)*p.m; }
+                else if (p.x > boxWidth - p.r) { 
+                    // Cek Katup Kebocoran (Lubang di dinding Kanan, y: 200-280)
+                    if(isLeaking && p.y > 200 && p.y < 280) {
+                        isEscaped = true; // Partikel lolos!
+                    } else {
+                        p.x = boxWidth - p.r; p.vx *= -1; frameWallHits += Math.abs(p.vx)*p.m; 
+                    }
+                }
+                
+                // Tumbukan Dinding Atas/Bawah
+                if (!isEscaped) {
+                    if (p.y < p.r) { p.y = p.r; p.vy *= -1; frameWallHits += Math.abs(p.vy)*p.m; }
+                    else if (p.y > boxHeight - p.r) { p.y = boxHeight - p.r; p.vy *= -1; frameWallHits += Math.abs(p.vy)*p.m; }
+                }
+
+                // Delete partikel jika lolos keluar kanvas jauh
+                if(isEscaped && p.x > canvas.width + 10) {
+                    particles.splice(i, 1);
+                    numParticlesTarget--; // Auto kurangi target
+                    document.getElementById('inputN').value = numParticlesTarget;
+                    document.getElementById('valN').innerText = numParticlesTarget;
+                }
+            }
+
+            // --- ELASTIC COLLISIONS ---
+            if(particles.length < 300) { // Limit O(N^2) logic for performance
+                checkCollisions();
+            }
+
+            // --- PRESSURE CALCULATION ---
+            // Tumbukan per frame di-akumulasi. P = F/A. Di 2D, F = dp/dt.
+            // Nilai dikali konstanta visual agar angka ATM realistis
+            let instPressure = (frameWallHits * 0.05) / (boxWidth * boxHeight / 10000); 
+            pressureArr.push(instPressure);
+            if(pressureArr.length > 20) pressureArr.shift(); // Moving avg over 20 frames
+            
+            currentPressure = pressureArr.reduce((a,b)=>a+b, 0) / pressureArr.length;
+            document.getElementById('dispP').innerText = currentPressure.toFixed(2) + " atm";
+
+            // V_rms calc
+            let v_rms = Math.sqrt(sumV2 / Math.max(1, particles.length)) * 10; // *10 for visual scale
+            document.getElementById('dispVrms').innerText = v_rms.toFixed(1) + " m/s";
+
+            // --- RENDER CANVAS ---
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Container Box
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.5)'; // Dark BG
+            ctx.fillRect(0, 0, boxWidth, boxHeight);
+            
+            // Dinding Container (Putih bercahaya jika tekanan tinggi)
+            let wallGlow = Math.min(1.0, currentPressure / 5.0);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + wallGlow*0.7})`;
+            ctx.lineWidth = 4 + (wallGlow * 4);
+            ctx.shadowColor = '#fff'; ctx.shadowBlur = 15 * wallGlow;
+            ctx.strokeRect(0, 0, boxWidth, boxHeight);
+            ctx.shadowBlur = 0; // Reset
+
+            // Draw Piston Wall (Dinding bergerak)
+            ctx.fillStyle = '#64748b'; ctx.fillRect(boxWidth, 0, 10, boxHeight);
+            
+            // Gambar Lubang Kebocoran (Jika aktif)
+            if(isLeaking) {
+                ctx.fillStyle = '#020617'; // Warna background asli untuk nutupin dinding
+                ctx.fillRect(boxWidth - 5, 200, 20, 80);
+                // Panah angin keluar
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.beginPath(); ctx.moveTo(boxWidth + 5, 220); ctx.lineTo(boxWidth + 25, 240); ctx.lineTo(boxWidth + 5, 260); ctx.fill();
+            }
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.getColor();
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+                
+                // Ekor gerakan cepat
+                let speed = p.getSpeed();
+                if(speed > 3 && !isSlowMo) {
+                    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2; ctx.globalAlpha = 0.4;
+                    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx*2, p.y - p.vy*2); ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            // --- UPDATE CHARTS (Tiap 0.5 detik simulasi) ---
+            if (simTime - lastChartUpdate > 0.5) {
+                lastChartUpdate = simTime;
+
+                // Update Chart P-t
+                chartPt.data.labels.push(simTime.toFixed(1));
+                chartPt.data.datasets[0].data.push(currentPressure.toFixed(2));
+                if(chartPt.data.labels.length > 30) { chartPt.data.labels.shift(); chartPt.data.datasets[0].data.shift(); }
+                chartPt.update();
+
+                // Update Histogram Velocity (Maxwell-Boltzmann)
+                let bins = [0,0,0,0,0,0,0,0];
+                particles.forEach(p => {
+                    let s = p.getSpeed() * 10; // visual to real m/s
+                    if(s<2) bins[0]++; else if(s<4) bins[1]++; else if(s<6) bins[2]++;
+                    else if(s<8) bins[3]++; else if(s<10) bins[4]++; else if(s<12) bins[5]++;
+                    else if(s<14) bins[6]++; else bins[7]++;
+                });
+                
+                // Warna bar histogram menyesuaikan suhu
+                let hColor = currentTemp > 600 ? '#ef4444' : (currentTemp < 150 ? '#3b82f6' : '#f59e0b');
+                chartVel.data.datasets[0].backgroundColor = hColor;
+                chartVel.data.datasets[0].data = bins;
+                chartVel.update();
+            }
+
+            animFrame = requestAnimationFrame(animatePhysics);
+        }
+
+        // --- DATA SNAPSHOT ---
+        function recordData() {
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = '';
+            
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 text-red-400 font-bold">${currentTemp.toFixed(0)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400">${volumePct}</td>
+                <td class="p-2 border-b border-slate-700/50">${particles.length}</td>
+                <td class="p-2 border-b border-slate-700/50 text-emerald-400 font-black">${currentPressure.toFixed(2)}</td>
+            </tr>`;
+            
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            dataHistory.push([currentTemp.toFixed(0), volumePct, particles.length, currentPressure.toFixed(2)]);
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Ambil snapshot data terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Lab: Teori Kinetik Gas", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Membuktikan hukum gas ideal: P.V = n.R.T", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Suhu (K)', 'Volume (%)', 'Jumlah Partikel', 'Tekanan (atm)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Kinetik_Gas.pdf");
+        }
+
+        // Init & Start
+        initCharts();
+        initSim();
+        animFrame = requestAnimationFrame(animatePhysics);
+    </script>
+</body>
+</html>

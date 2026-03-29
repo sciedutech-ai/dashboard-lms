@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Generator Lab - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #020617; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-amber::-webkit-slider-thumb { border: 2px solid #f59e0b; background: #f59e0b; box-shadow: 0 0 15px #f59e0b; }
+        .slider-cyan::-webkit-slider-thumb { border: 2px solid #06b6d4; background: #06b6d4; box-shadow: 0 0 15px #06b6d4; }
+        .slider-purple::-webkit-slider-thumb { border: 2px solid #a855f7; background: #a855f7; box-shadow: 0 0 15px #a855f7; }
+
+        #simCanvas { background: radial-gradient(circle at center, #0f172a 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; border: 1px solid #1e293b; }
+        
+        .glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        
+        .shake-alert { animation: shake 0.4s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 tracking-tight">⚡ Smart Generator Lab</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Power Plant Simulator • Faraday's Law</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 rounded-lg text-sm font-bold text-amber-400 transition">
+                <i data-lucide="terminal" width="16"></i> <span class="hidden md:block">Manual Book</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Blueprint Teori</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-amber-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto text-sm text-slate-300">
+            <h3 class="text-amber-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="settings"></i> Cockpit Manual</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">1. Tentukan Penggerak (Prime Mover)</h4>
+                    <p class="text-xs">Ubah sumber energi kinetik menjadi listrik. Pilih putaran <b>Manual (Engkol)</b>, <b>Aliran Air (PLTA)</b>, atau <b>Angin (PLTB)</b>. Sumber energi menentukan kecepatan rotasi (RPM) rotor.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">2. Atur Parameter Stator & Magnet</h4>
+                    <p class="text-xs">Modifikasi generator dengan memperbanyak Lilitan Kawat (\(N\)), memperluas penampang kumparan (\(A\)), atau memperkuat Magnet Permanen (\(B\)). Perhatikan efeknya pada output Tegangan!</p>
+                </div>
+                <div class="bg-red-900/20 p-3 rounded-lg border border-red-500/30">
+                    <h4 class="font-bold text-red-400 mb-2">⚠️ Peringatan Overload</h4>
+                    <p class="text-xs">Sistem dihubungkan ke Jaringan Listrik Mini berhambatan tetap (\(1000 \, \Omega\)). Jika kamu memutar generator terlalu cepat (\(> 100 \, \text{kW}\)), sistem akan Overload dan trip (mati total)!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-cyan-400 font-bold mb-2 text-center">Fluks Magnetik (\(\Phi\))</h3>
+                <p class="text-xs mb-2 text-center">Jumlah garis gaya magnet yang menembus luasan bidang kumparan.</p>
+                <div class="font-mono text-cyan-300 text-xs bg-slate-950 p-2 rounded text-center border border-cyan-900">\( \Phi = B \times A \times \cos(\theta) \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-amber-400 font-bold mb-2 text-center">Hukum Faraday (GGL Induksi)</h3>
+                <p class="text-xs mb-2 text-center">Tegangan (\(\epsilon\)) timbul akibat perubahan fluks magnetik seiring waktu berputarnya kumparan (\(\omega\)).</p>
+                <div class="font-mono text-amber-300 text-xs bg-slate-950 p-2 rounded text-center border border-amber-900">\( \epsilon = N \cdot B \cdot A \cdot \omega \cdot \sin(\omega t) \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-emerald-400 font-bold mb-2 text-center">Kecepatan Sudut (\(\omega\))</h3>
+                <p class="text-xs mb-2 text-center">Kecepatan putar rotor (kumparan) diubah dari RPM menjadi Radian per detik.</p>
+                <div class="font-mono text-emerald-300 text-xs bg-slate-950 p-2 rounded text-center border border-emerald-900">\( \omega = \frac{\text{RPM} \times 2\pi}{60} \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1600px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-7 flex flex-col gap-4">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[400px] md:h-[500px] border border-slate-800">
+                    
+                    <div class="absolute top-4 left-4 z-20 flex gap-3 pointer-events-none">
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-t-2 border-t-emerald-500 shadow-lg">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rotasi (RPM)</p>
+                            <p class="font-mono text-2xl text-emerald-400 font-black" id="dispRPM">0</p>
+                        </div>
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-t-2 border-t-cyan-500 shadow-lg">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Frekuensi AC</p>
+                            <p class="font-mono text-2xl text-cyan-400 font-black" id="dispHz">0 <span class="text-sm">Hz</span></p>
+                        </div>
+                    </div>
+
+                    <div class="absolute top-4 right-4 z-20 flex flex-col gap-3 items-end pointer-events-none">
+                        <div class="glass-panel p-3 rounded-xl border border-slate-700 shadow-lg flex items-center gap-3">
+                            <div class="text-right">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Jaringan Kota</p>
+                                <p class="font-mono text-sm text-amber-400 font-bold">1000 Ω Load</p>
+                            </div>
+                            <div id="cityGlow" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 transition-all duration-100">
+                                <i data-lucide="building-2" id="cityIcon" class="text-slate-600 transition-colors"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="overloadAlert" class="absolute inset-0 z-30 bg-red-950/90 backdrop-blur-md flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                        <i data-lucide="triangle-alert" class="text-red-500 mb-4" width="64" height="64"></i>
+                        <h2 class="text-4xl md:text-6xl font-black text-white tracking-widest shake-alert mb-2">SYSTEM OVERLOAD!</h2>
+                        <p class="text-xl text-red-200 font-bold bg-black/50 px-6 py-2 rounded-lg border border-red-500/50">Daya Maksimal Terlampaui (> 100 kW)</p>
+                        <p class="text-sm text-slate-300 mt-4 animate-pulse">Kurangi kecepatan turbin atau parameter generator, lalu Reset Sistem.</p>
+                    </div>
+
+                    <canvas id="genCanvas" width="800" height="500" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-lg relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-amber-500/10 rounded-bl-full"></div>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Tegangan (V_rms)</p>
+                        <p class="font-mono text-3xl font-black text-amber-400" id="dispV">0 <span class="text-lg">V</span></p>
+                    </div>
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-lg relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-blue-500/10 rounded-bl-full"></div>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Kuat Arus (I_rms)</p>
+                        <p class="font-mono text-3xl font-black text-blue-400" id="dispI">0.00 <span class="text-lg">A</span></p>
+                    </div>
+                    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-lg relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full"></div>
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Daya Output (P)</p>
+                        <p class="font-mono text-3xl font-black text-emerald-400" id="dispP">0 <span class="text-lg">kW</span></p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-5 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-amber-500 p-5 shadow-xl">
+                    <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-700">
+                        <h3 class="font-bold text-white flex items-center gap-2 uppercase tracking-widest text-sm"><i data-lucide="cpu" class="text-amber-400"></i> Engineering Console</h3>
+                        <div id="statusBadge" class="px-3 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-full border border-slate-600">STANDBY</div>
+                    </div>
+
+                    <div class="space-y-5">
+                        
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Pilih Sumber Penggerak (Prime Mover)</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="source" value="manual" class="hidden peer" checked onchange="changeSource()">
+                                    <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition">
+                                        <i data-lucide="hand" class="mx-auto mb-1 text-slate-400 peer-checked:text-amber-400" width="20"></i>
+                                        <span class="text-[10px] font-bold text-slate-300">MANUAL</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="source" value="hydro" class="hidden peer" onchange="changeSource()">
+                                    <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500/10 transition">
+                                        <i data-lucide="waves" class="mx-auto mb-1 text-slate-400 peer-checked:text-blue-400" width="20"></i>
+                                        <span class="text-[10px] font-bold text-slate-300">PLTA (Air)</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="source" value="wind" class="hidden peer" onchange="changeSource()">
+                                    <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 transition">
+                                        <i data-lucide="wind" class="mx-auto mb-1 text-slate-400 peer-checked:text-emerald-400" width="20"></i>
+                                        <span class="text-[10px] font-bold text-slate-300">PLTB (Angin)</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/80">
+                            <div class="flex justify-between mb-2">
+                                <label id="labelSpeed" class="text-xs font-bold text-slate-300 uppercase">Kecepatan Engkol</label>
+                                <span id="valSpeed" class="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">0 %</span>
+                            </div>
+                            <input type="range" id="inputSpeed" min="0" max="100" value="0" step="1" class="slider-amber w-full" oninput="updatePhysics()">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/80">
+                                <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-slate-400 uppercase">Lilitan (N)</label><span id="valN" class="text-[10px] font-mono text-cyan-400 font-bold">100</span></div>
+                                <input type="range" id="inputN" min="10" max="500" value="100" step="10" class="slider-cyan w-full" oninput="updatePhysics()">
+                            </div>
+                            <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/80">
+                                <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-slate-400 uppercase">Magnet (B)</label><span id="valB" class="text-[10px] font-mono text-purple-400 font-bold">0.5 T</span></div>
+                                <input type="range" id="inputB" min="0.1" max="2.0" value="0.5" step="0.1" class="slider-purple w-full" oninput="updatePhysics()">
+                            </div>
+                            <div class="col-span-2 bg-slate-900/60 p-3 rounded-xl border border-slate-700/80">
+                                <div class="flex justify-between mb-1"><label class="text-[10px] font-bold text-slate-400 uppercase">Luas Penampang Kumparan (A)</label><span id="valA" class="text-[10px] font-mono text-emerald-400 font-bold">0.5 m²</span></div>
+                                <input type="range" id="inputA" min="0.1" max="2.0" value="0.5" step="0.1" class="slider-cyan w-full" oninput="updatePhysics()">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button id="btnSystem" onclick="toggleSystem()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-black py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm uppercase tracking-widest border-b-4 border-amber-800 active:border-b-0 active:translate-y-1">
+                                <i data-lucide="power" width="18"></i> START SYSTEM
+                            </button>
+                            <button onclick="resetOverload()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-3 rounded-xl transition flex justify-center items-center border border-slate-600" title="Reset Sistem">
+                                <i data-lucide="rotate-ccw" width="18"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="activity" class="text-cyan-400" width="14"></i> Osiloskop AC (Tegangan)</h3>
+                        <span class="text-[9px] text-slate-500 font-mono">Real-time Sinewave</span>
+                    </div>
+                    <div class="w-full flex-1 min-h-[160px] relative">
+                        <canvas id="oscChart"></canvas>
+                        <div class="absolute inset-0 pointer-events-none opacity-10" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 2px, #000 4px);"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-xl mt-2 max-w-[1600px] w-full mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="server"></i> Log Stasiun Pembangkit</h3>
+                <div class="flex gap-2">
+                    <button onclick="takeSnapshot()" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-4 py-1.5 rounded-lg text-xs font-bold border border-blue-500/30 transition flex items-center gap-2">
+                        <i data-lucide="camera" width="14"></i> Snapshot Data
+                    </button>
+                    <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                        <i data-lucide="file-down" width="14"></i> Laporan PDF
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs md:text-sm">
+                    <thead class="bg-slate-900 text-slate-400">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Waktu</th>
+                            <th class="p-3 border-b border-slate-700">Sumber</th>
+                            <th class="p-3 border-b border-slate-700 text-emerald-400">Rotasi (RPM)</th>
+                            <th class="p-3 border-b border-slate-700 text-amber-400">Tegangan V_rms (V)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Arus I_rms (A)</th>
+                            <th class="p-3 border-b border-slate-700 text-cyan-400">Daya Total (kW)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                        <tr><td colspan="6" class="p-4 text-center text-slate-500 font-sans text-xs">Jalankan sistem dan tekan "Snapshot Data" untuk menyimpan log.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE (3D-ish Generator) ---
+        const canvas = document.getElementById('genCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- PHYSICS STATE & VARIABLES ---
+        let isSystemOn = false;
+        let isOverload = false;
+        const LOAD_RESISTANCE = 1000; // Ohm (Konstan)
+        const MAX_POWER_KW = 100; // KiloWatt batas aman
+
+        let sourceMode = 'manual'; // manual, hydro, wind
+        let powerInputPct = 0; // 0 - 100%
+        let targetRPM = 0;
+        let currentRPM = 0; // Menggunakan lerp agar ada inersia putaran
+        
+        // Parameters
+        let N = 100; // Turns
+        let B = 0.5; // Tesla
+        let A = 0.5; // m2
+        
+        // Dynamic outputs
+        let omega = 0; // rad/s
+        let theta = 0; // angle of rotor
+        let V_max = 0;
+        let V_rms = 0;
+        let I_rms = 0;
+        let P_kw = 0;
+        
+        // Animation Variables
+        let timeSim = 0;
+        let particles = []; // Untuk air/angin
+
+        // Data Storage & Chart
+        let oscChart;
+        let chartDataLength = 100;
+        let dataHistory = [];
+        
+        // --- INITIALIZE OSCILLOSCOPE ---
+        function initChart() {
+            Chart.defaults.color = '#64748b'; 
+            Chart.defaults.font.family = 'monospace';
+            
+            let initData = Array(chartDataLength).fill(0);
+            let initLabels = Array(chartDataLength).fill('');
+
+            oscChart = new Chart(document.getElementById('oscChart').getContext('2d'), {
+                type: 'line',
+                data: { 
+                    labels: initLabels,
+                    datasets: [{ 
+                        label: 'GGL Induksi / Tegangan (V)', 
+                        borderColor: '#14b8a6', // Teal neon
+                        backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                        data: initData, 
+                        pointRadius: 0, 
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    animation: false, // Matikan animasi bawaan agar real-time mulus
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { display: false }, // Sembunyikan sumbu X osiloskop
+                        y: { title: {display: true, text: 'Volt (V)'}, suggestedMin: -500, suggestedMax: 500 }
+                    }
+                }
+            });
+        }
+
+        // --- CONTROLS & LOGIC ---
+        function changeSource() {
+            sourceMode = document.querySelector('input[name="source"]:checked').value;
+            const label = document.getElementById('labelSpeed');
+            const bgContainer = document.getElementById('genCanvas').parentElement;
+            
+            if(sourceMode === 'manual') {
+                label.innerText = "Kecepatan Engkol Manual";
+                bgContainer.style.background = 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)';
+            } else if(sourceMode === 'hydro') {
+                label.innerText = "Debit Aliran Air (Katup Turbin)";
+                bgContainer.style.background = 'radial-gradient(circle at center, #082f49 0%, #020617 100%)'; // Dark cyan
+            } else {
+                label.innerText = "Kecepatan Angin Alam";
+                bgContainer.style.background = 'radial-gradient(circle at center, #064e3b 0%, #020617 100%)'; // Dark emerald
+            }
+            
+            // Inisialisasi partikel untuk efek visual
+            initParticles();
+        }
+
+        function toggleSystem() {
+            if(isOverload) return alert("Sistem terkunci karena OVERLOAD! Reset terlebih dahulu.");
+            
+            isSystemOn = !isSystemOn;
+            const btn = document.getElementById('btnSystem');
+            const badge = document.getElementById('statusBadge');
+            
+            if(isSystemOn) {
+                btn.innerHTML = `<i data-lucide="power-off" width="18"></i> SHUTDOWN SYSTEM`;
+                btn.classList.replace('bg-amber-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-amber-500', 'hover:bg-red-500');
+                btn.classList.replace('border-amber-800', 'border-red-800');
+                
+                badge.innerText = "ONLINE";
+                badge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse";
+            } else {
+                btn.innerHTML = `<i data-lucide="power" width="18"></i> START SYSTEM`;
+                btn.classList.replace('bg-red-600', 'bg-amber-600');
+                btn.classList.replace('hover:bg-red-500', 'hover:bg-amber-500');
+                btn.classList.replace('border-red-800', 'border-amber-800');
+                
+                badge.innerText = "STANDBY";
+                badge.className = "px-3 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-full border border-slate-600";
+            }
+            lucide.createIcons();
+        }
+
+        function updatePhysics() {
+            if(isOverload) return;
+
+            powerInputPct = parseFloat(document.getElementById('inputSpeed').value);
+            document.getElementById('valSpeed').innerText = powerInputPct + " %";
+
+            N = parseInt(document.getElementById('inputN').value);
+            B = parseFloat(document.getElementById('inputB').value);
+            A = parseFloat(document.getElementById('inputA').value);
+            
+            document.getElementById('valN').innerText = N;
+            document.getElementById('valB').innerText = B.toFixed(1) + " T";
+            document.getElementById('valA').innerText = A.toFixed(1) + " m²";
+
+            // Target RPM bergantung mode (Manual maks 60, Hydro maks 300, Wind maks 600) -> Disesuaikan agar grafik osiloskop bagus (visual Hz tidak terlalu rapat)
+            let maxRPM = 0;
+            if(sourceMode === 'manual') maxRPM = 120;
+            else if(sourceMode === 'hydro') maxRPM = 300;
+            else if(sourceMode === 'wind') maxRPM = 600;
+
+            targetRPM = (powerInputPct / 100) * maxRPM;
+            if(!isSystemOn) targetRPM = 0;
+        }
+
+        function triggerOverload() {
+            isOverload = true;
+            isSystemOn = false;
+            
+            document.getElementById('overloadAlert').classList.remove('opacity-0', 'pointer-events-none');
+            
+            const btn = document.getElementById('btnSystem');
+            btn.innerHTML = `<i data-lucide="triangle-alert" width="18"></i> SYSTEM LOCKED`;
+            btn.classList.replace('bg-amber-600', 'bg-slate-700');
+            btn.classList.replace('bg-red-600', 'bg-slate-700');
+            btn.disabled = true;
+
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = "OVERLOAD TRIPPED";
+            badge.className = "px-3 py-1 bg-red-600 text-white text-[10px] font-bold rounded-full border border-red-400 shadow-[0_0_15px_rgba(220,38,38,0.8)]";
+            
+            lucide.createIcons();
+            
+            // Matikan daya
+            V_max = 0; V_rms = 0; I_rms = 0; P_kw = 0; targetRPM = 0;
+            updateDigitalDisplays();
+            updateCityLights();
+        }
+
+        function resetOverload() {
+            isOverload = false;
+            isSystemOn = false;
+            
+            document.getElementById('overloadAlert').classList.add('opacity-0', 'pointer-events-none');
+            
+            // Reset Sliders & Target
+            document.getElementById('inputSpeed').value = 0;
+            targetRPM = 0; currentRPM = 0;
+            powerInputPct = 0;
+            document.getElementById('valSpeed').innerText = "0 %";
+            
+            const btn = document.getElementById('btnSystem');
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="power" width="18"></i> START SYSTEM`;
+            btn.className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white font-black py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm uppercase tracking-widest border-b-4 border-amber-800 active:border-b-0 active:translate-y-1";
+            
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = "STANDBY";
+            badge.className = "px-3 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-full border border-slate-600";
+            
+            lucide.createIcons();
+            updateDigitalDisplays();
+            updateCityLights();
+        }
+
+        function updateDigitalDisplays() {
+            // Animasi angka
+            document.getElementById('dispRPM').innerText = currentRPM.toFixed(0);
+            
+            let Hz = currentRPM / 60;
+            document.getElementById('dispHz').innerHTML = Hz.toFixed(1) + ' <span class="text-sm text-slate-500">Hz</span>';
+            
+            document.getElementById('dispV').innerHTML = V_rms.toLocaleString(undefined, {maximumFractionDigits:0}) + ' <span class="text-lg text-slate-500">V</span>';
+            document.getElementById('dispI').innerHTML = I_rms.toFixed(2) + ' <span class="text-lg text-slate-500">A</span>';
+            document.getElementById('dispP').innerHTML = P_kw.toFixed(2) + ' <span class="text-lg text-slate-500">kW</span>';
+        }
+
+        function updateCityLights() {
+            const cityIcon = document.getElementById('cityIcon');
+            const cityBg = document.getElementById('cityGlow');
+            
+            if(isOverload || P_kw === 0) {
+                cityIcon.className = "text-slate-600 transition-colors";
+                cityBg.className = "w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 transition-all duration-300";
+                cityBg.style.boxShadow = "none";
+            } else {
+                // Skala kecerahan berdasarkan daya (Maks 100kW untuk brightness full)
+                let brightness = Math.min(1.0, P_kw / 50.0); // 50kW = Terang normal
+                let r = Math.floor(250 * brightness);
+                let g = Math.floor(200 * brightness);
+                
+                cityIcon.className = "text-yellow-100 transition-colors drop-shadow-[0_0_5px_rgba(253,224,71,1)]";
+                cityBg.className = "w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-400 transition-all duration-100";
+                cityBg.style.boxShadow = `0 0 ${10 + (20 * brightness)}px rgba(${r}, ${g}, 0, ${brightness})`;
+            }
+        }
+
+        // --- RENDER VISUAL (CANVAS 3D SIMULATION) ---
+        function initParticles() {
+            particles = [];
+            // Jika air/angin, buat partikel yang mengalir
+            if(sourceMode !== 'manual') {
+                for(let i=0; i<50; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        speed: 2 + Math.random() * 5
+                    });
+                }
+            }
+        }
+
+        function drawGenerator() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // 1. Draw Environmental Particles (Air / Angin)
+            if(sourceMode !== 'manual' && particles.length > 0) {
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                if(sourceMode === 'hydro') ctx.strokeStyle = 'rgba(14, 165, 233, 0.4)'; // Cyan
+                if(sourceMode === 'wind') ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Putih
+                
+                let flowSpeed = (currentRPM / 100) + 1; // Kecepatan partikel ikut RPM
+
+                particles.forEach(p => {
+                    ctx.moveTo(p.x, p.y);
+                    if(sourceMode === 'hydro') {
+                        // Air jatuh ke bawah
+                        ctx.lineTo(p.x, p.y + 15);
+                        p.y += (p.speed * flowSpeed);
+                        if(p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+                    } else {
+                        // Angin ke samping
+                        ctx.lineTo(p.x + 20, p.y);
+                        p.x += (p.speed * flowSpeed);
+                        if(p.x > canvas.width) { p.x = -20; p.y = Math.random() * canvas.height; }
+                    }
+                });
+                ctx.stroke();
+            }
+
+            // 2. Draw Magnet Stator (Kiri N, Kanan S)
+            const magDist = 150;
+            const magWidth = 60;
+            const magHeight = 200;
+            
+            // Magnet N (Kiri, Merah)
+            ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(239, 68, 68, 0.4)';
+            ctx.fillStyle = '#b91c1c'; // Dark red
+            ctx.fillRect(cx - magDist - magWidth, cy - magHeight/2, magWidth, magHeight);
+            ctx.fillStyle = '#ef4444'; // Bright face
+            ctx.fillRect(cx - magDist - 10, cy - magHeight/2, 10, magHeight);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText('N', cx - magDist - magWidth/2, cy);
+
+            // Magnet S (Kanan, Biru)
+            ctx.shadowColor = 'rgba(59, 130, 246, 0.4)';
+            ctx.fillStyle = '#1d4ed8'; // Dark blue
+            ctx.fillRect(cx + magDist, cy - magHeight/2, magWidth, magHeight);
+            ctx.fillStyle = '#3b82f6'; // Bright face
+            ctx.fillRect(cx + magDist, cy - magHeight/2, 10, magHeight);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('S', cx + magDist + magWidth/2, cy);
+            ctx.shadowBlur = 0;
+
+            // 3. Magnetic Field Lines (Background B)
+            // Gambar panah-panah redup dari N ke S di area tengah
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for(let y = cy - 80; y <= cy + 80; y += 40) {
+                ctx.moveTo(cx - magDist + 10, y);
+                ctx.lineTo(cx + magDist - 10, y);
+                // Panah
+                ctx.lineTo(cx + magDist - 20, y - 5);
+                ctx.moveTo(cx + magDist - 10, y);
+                ctx.lineTo(cx + magDist - 20, y + 5);
+            }
+            ctx.stroke();
+
+            // 4. Rotor (Kumparan Berputar 3D Semu)
+            // Memproyeksikan rotasi sumbu Y (menggunakan Math.cos(theta) untuk skala lebar)
+            let coilWidth = 120 * Math.cos(theta); // Menyempit dan melebar (efek putar 3D)
+            let coilHeight = 160;
+            
+            // Gambar Poros Tengah (Shaft)
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(cx - 4, cy - coilHeight/2 - 50, 8, coilHeight + 100);
+
+            // Gambar Turbin Penggerak di atas poros
+            if(sourceMode === 'manual') {
+                // Engkol
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.moveTo(cx, cy - coilHeight/2 - 40); ctx.lineTo(cx + 40*Math.cos(theta), cy - coilHeight/2 - 60); ctx.stroke();
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(cx + 40*Math.cos(theta), cy - coilHeight/2 - 60, 10, 0, Math.PI*2); ctx.fill();
+            } else if (sourceMode === 'hydro') {
+                // Kincir Pelton (Air)
+                ctx.save(); ctx.translate(cx, cy - coilHeight/2 - 30); ctx.rotate(theta);
+                ctx.fillStyle = '#f59e0b'; // Amber
+                for(let i=0; i<8; i++) {
+                    ctx.rotate(Math.PI/4);
+                    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0, -40); ctx.lineTo(-10, -50); ctx.lineTo(10, -50); ctx.fill();
+                }
+                ctx.restore();
+            } else {
+                // Propeller Kincir Angin
+                ctx.save(); ctx.translate(cx, cy - coilHeight/2 - 30); ctx.rotate(theta);
+                ctx.fillStyle = '#cbd5e1';
+                for(let i=0; i<3; i++) {
+                    ctx.rotate((Math.PI*2)/3);
+                    ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(20, -50, 0, -80); ctx.quadraticCurveTo(-20, -50, 0, 0); ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // Gambar Lilitan Kawat (Warna Emas Tembaga)
+            // Jika P tinggi, kawat glowing kuning/putih
+            let wireGlow = Math.min(1.0, P_kw / 50.0);
+            ctx.strokeStyle = `rgba(217, 119, 6, ${1 - wireGlow * 0.5})`; // Default Copper
+            if(wireGlow > 0.1 && !isOverload) {
+                ctx.shadowBlur = 10 * wireGlow;
+                ctx.shadowColor = '#fef08a'; // Yellow glow
+                ctx.strokeStyle = `rgba(253, 224, 71, 1)`; 
+            }
+            
+            // Gambar kawat depan (tergantung sudut)
+            ctx.lineWidth = 6 + (N/100); // Visual tebal kawat berdasarkan N
+            ctx.beginPath();
+            ctx.rect(cx - coilWidth/2, cy - coilHeight/2, coilWidth, coilHeight);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // 5. Cincin Seret (Slip Rings untuk AC) di bawah kumparan
+            // Cincin 1 (Merah)
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.ellipse(cx, cy + coilHeight/2 + 20, 20, 5, 0, 0, Math.PI*2); ctx.stroke();
+            // Kabel sambungan ke cincin 1
+            ctx.beginPath(); ctx.moveTo(cx - coilWidth/2, cy + coilHeight/2); ctx.lineTo(cx - 15, cy + coilHeight/2 + 20); ctx.stroke();
+            // Sikat (Brush)
+            ctx.fillStyle = '#64748b'; ctx.fillRect(cx - 28, cy + coilHeight/2 + 18, 8, 4);
+            
+            // Cincin 2 (Biru)
+            ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.ellipse(cx, cy + coilHeight/2 + 40, 20, 5, 0, 0, Math.PI*2); ctx.stroke();
+            // Kabel sambungan ke cincin 2
+            ctx.beginPath(); ctx.moveTo(cx + coilWidth/2, cy + coilHeight/2); ctx.lineTo(cx + 15, cy + coilHeight/2 + 40); ctx.stroke();
+            // Sikat
+            ctx.fillStyle = '#64748b'; ctx.fillRect(cx + 20, cy + coilHeight/2 + 38, 8, 4);
+
+            // Kabel output ke luar layar (Grid)
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(cx - 36, cy + coilHeight/2 + 20); ctx.lineTo(10, cy + coilHeight/2 + 20); ctx.stroke(); // Kabel merah out
+            ctx.beginPath(); ctx.moveTo(cx + 28, cy + coilHeight/2 + 40); ctx.lineTo(canvas.width - 10, cy + coilHeight/2 + 40); ctx.stroke(); // Kabel biru out
+        }
+
+        // --- MAIN SIMULATION LOOP ---
+        function animatePhysics() {
+            updatePhysics(); // Catch slider changes
+
+            // Inersia Putaran (Lerp)
+            if(!isOverload) {
+                currentRPM += (targetRPM - currentRPM) * 0.05; // Smooth acceleration
+            } else {
+                currentRPM += (0 - currentRPM) * 0.1; // Rem mendadak karena jebol
+            }
+
+            // Kalkulasi Kecepatan Sudut (Radian per sekon)
+            omega = (currentRPM * 2 * Math.PI) / 60;
+            
+            // Update Sudut Rotor (theta) -> deltaTime asumsi 60fps (~0.016s)
+            theta += omega * 0.016; 
+
+            // ==========================================
+            // HUKUM FARADAY MURNI
+            // epsilon = N * B * A * omega * sin(theta)
+            // ==========================================
+            
+            let instantVoltage = 0;
+            
+            if(isSystemOn && !isOverload) {
+                // Hitung Tegangan Instan (Sesaat) untuk Grafik Sinus
+                instantVoltage = N * B * A * omega * Math.sin(theta);
+                
+                // Hitung V_max dan V_rms untuk Panel Digital
+                V_max = N * B * A * omega;
+                V_rms = V_max / Math.sqrt(2);
+                
+                // Arus dan Daya
+                I_rms = V_rms / LOAD_RESISTANCE;
+                let P_watt = Math.pow(V_rms, 2) / LOAD_RESISTANCE;
+                P_kw = P_watt / 1000;
+
+                // Cek Overload
+                if(P_kw > MAX_POWER_KW) {
+                    triggerOverload();
+                }
+            } else {
+                instantVoltage = 0;
+                V_rms += (0 - V_rms) * 0.1; // Turun perlahan (karena kapasitor/efek visual)
+                if(V_rms < 0.1) { V_rms = 0; I_rms = 0; P_kw = 0; }
+            }
+
+            // --- UPDATE OSILOSKOP (CHART.JS) ---
+            // Geser array data ke kiri (seperti ECG / Osiloskop asli)
+            let currentData = oscChart.data.datasets[0].data;
+            currentData.shift(); // Hapus index 0
+            currentData.push(instantVoltage); // Masukkan data terbaru di ujung kanan
+            
+            // Auto scale axis-Y agar gelombang terlihat indah tidak terlalu ceper/kepanjangan
+            let maxChart = Math.max(500, V_max * 1.2); 
+            oscChart.options.scales.y.suggestedMax = maxChart;
+            oscChart.options.scales.y.suggestedMin = -maxChart;
+            
+            oscChart.update();
+
+            // Render Frame
+            drawGenerator();
+            updateDigitalDisplays();
+            
+            // Panggil warna lampu kota tapi dilimit agar tidak kedip2 tiap frame
+            timeSim++;
+            if(timeSim % 5 === 0) updateCityLights();
+
+            animFrame = requestAnimationFrame(animatePhysics);
+        }
+
+        // --- DATA SNAPSHOT ---
+        function takeSnapshot() {
+            if(!isSystemOn || isOverload) return alert("Nyalakan generator dan pastikan tidak overload untuk mencatat data valid!");
+
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                            now.getMinutes().toString().padStart(2, '0') + ":" + 
+                            now.getSeconds().toString().padStart(2, '0');
+
+            let sName = document.querySelector('input[name="source"]:checked').nextElementSibling.innerText.trim();
+
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = ''; // Hapus pesan kosong
+
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${timeStr}</td>
+                <td class="p-2 border-b border-slate-700/50 uppercase text-[10px]">${sName}</td>
+                <td class="p-2 border-b border-slate-700/50 text-emerald-400 font-bold">${currentRPM.toFixed(0)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-amber-400 font-bold">${V_rms.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400">${I_rms.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-cyan-400 font-black">${P_kw.toFixed(2)}</td>
+            </tr>`;
+            
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([timeStr, sName, currentRPM.toFixed(0), V_rms.toFixed(0), I_rms.toFixed(2), P_kw.toFixed(2)]);
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Ambil snapshot data terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Log Pembangkit Listrik (Smart Generator)", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Pembuktian Hukum Faraday mengenai induksi elektromagnetik (GGL bolak-balik).", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Waktu', 'Penggerak', 'RPM', 'Tegangan (V)', 'Arus (A)', 'Daya (kW)']], body: dataHistory, theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Pembangkit_Listrik.pdf");
+        }
+
+        // Init App Start
+        initChart();
+        initParticles();
+        drawGenerator(); 
+        animFrame = requestAnimationFrame(animatePhysics); // Start Loop
+    </script>
+</body>
+</html>

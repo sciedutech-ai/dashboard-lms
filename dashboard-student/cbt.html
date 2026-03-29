@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian CBT - SekolahDigi</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <link rel="stylesheet" href="cbt.css">
+</head>
+<body class="font-sans text-slate-900 h-screen flex flex-col" oncontextmenu="return false;">
+
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-[200] flex flex-col items-center justify-center text-white">
+        <i data-lucide="loader-2" width="48" height="48" class="animate-spin text-blue-500 mb-4"></i>
+        <h2 class="text-xl font-bold" id="loading-text">Memuat Sistem Ujian...</h2>
+    </div>
+
+    <div id="cheat-warning" class="hidden fixed inset-0 bg-red-900/90 z-[100] flex flex-col items-center justify-center text-white p-6 text-center">
+        <i data-lucide="alert-triangle" width="64" height="64" class="text-yellow-400 mb-4 animate-bounce"></i>
+        <h1 class="text-3xl font-bold mb-2">PELANGGARAN TERDETEKSI!</h1>
+        <p class="text-lg mb-6 max-w-md">Anda telah keluar dari mode layar penuh atau berpindah tab. Ini dicatat sebagai percobaan kecurangan.</p>
+        <button onclick="resumeExam()" class="bg-white text-red-900 px-6 py-3 rounded-lg font-bold hover:bg-slate-200 transition">
+            Kembali ke Ujian
+        </button>
+    </div>
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white"><i data-lucide="monitor-play"></i></div>
+            <div>
+                <h2 class="font-bold text-lg text-slate-800" id="exam-title">Memuat Ujian...</h2>
+                <p class="text-xs text-slate-500" id="exam-subject">Mata Pelajaran: ...</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                <div class="text-xs text-slate-500 font-semibold uppercase">Sisa Waktu</div>
+                <div class="text-xl font-bold text-red-600 font-mono" id="timer-display">00:00:00</div>
+            </div>
+            <button onclick="confirmFinishExam()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-green-700 transition flex items-center gap-2">
+                <i data-lucide="check-circle" width="18"></i> Selesai
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex bg-slate-50 relative">
+        <div class="flex-1 overflow-y-auto p-6 md:p-10">
+            <div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                    <h3 class="font-bold text-xl text-slate-800">Soal No. <span id="current-question-num">1</span></h3>
+                </div>
+                <div id="media-container" class="mb-6 hidden"></div>
+                <div id="question-text" class="text-lg text-slate-700 mb-8 leading-relaxed">Memuat soal...</div>
+                <div id="options-container" class="space-y-3"></div>
+            </div>
+
+            <div class="max-w-3xl mx-auto mt-6 flex justify-between items-center">
+                <button onclick="prevQuestion()" id="btn-prev" class="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50">Sebelumnya</button>
+                <button onclick="nextQuestion()" id="btn-next" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition disabled:opacity-50">Selanjutnya</button>
+            </div>
+        </div>
+
+        <aside class="w-72 bg-white border-l border-slate-200 p-6 overflow-y-auto shrink-0 hidden md:block">
+            <h3 class="font-bold text-slate-800 mb-4">Navigasi Soal</h3>
+            <div id="question-navigation" class="grid grid-cols-5 gap-2"></div>
+            
+            <div class="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <h4 class="text-sm font-bold text-slate-700 mb-2">Status Peserta</h4>
+                <div class="text-xs text-slate-500 mb-1">Nama: <span class="font-semibold text-slate-800" id="student-name">...</span></div>
+                <div class="text-xs text-slate-500">Pelanggaran: <span class="font-bold text-red-600" id="violation-count">0</span>/3</div>
+            </div>
+        </aside>
+    </main>
+
+    <div id="webcam-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <div class="absolute bottom-1 left-0 w-full text-center bg-black/50 text-[10px] text-white py-1">🔴 Merekam</div>
+    </div>
+
+    <script src="cbt.js"></script>
+</body>
+</html>

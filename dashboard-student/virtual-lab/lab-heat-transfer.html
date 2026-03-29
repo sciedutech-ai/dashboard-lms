@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heat Transfer Lab - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #ef4444;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-red::-webkit-slider-thumb { border-color: #ef4444; background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+        .slider-blue::-webkit-slider-thumb { border-color: #3b82f6; background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+
+        #simCanvas { background: #020617; width: 100%; height: auto; border-radius: 1rem; border: 1px solid #1e293b; }
+        
+        .radio-btn:checked + label { border-color: #ef4444; background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+        .glass-hud { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 tracking-tight">🔥 Heat Transfer Lab</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Perpindahan Kalor • Konduksi, Konveksi, Radiasi</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-orange-600/20 hover:bg-orange-600/40 border border-orange-500/30 rounded-lg text-sm font-bold text-orange-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-orange-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-orange-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="flame"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Pilih Mode Perpindahan:</b> Konduksi (melalui benda padat), Konveksi (melalui cairan/gas), atau Radiasi (tanpa medium / vakum).</li>
+                    <li><b>Atur Suhu Sumber (Heater):</b> Tentukan seberapa panas elemen pemanas di sebelah kiri / bawah.</li>
+                    <li><b>Modifikasi Material:</b> Pada mode konduksi, coba ganti batang Tembaga menjadi Kayu. Pada mode radiasi, ubah jarak sensornya.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-red-400 mb-2">📊 Analisis Heat Map</h4>
+                    <p class="text-xs">Perhatikan warna pada kanvas. <b class="text-blue-400">Biru = Dingin (20°C)</b>, sedangkan <b class="text-red-500">Merah Terang = Panas Maksimal</b>. Gunakan grafik di panel kanan untuk melihat lonjakan suhu target seiring waktu secara presisi!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-orange-400 font-bold mb-2">Konduksi (Rambatan)</h3>
+                <p class="text-xs mb-2">Perpindahan panas melalui partikel zat padat tanpa partikelnya ikut berpindah. Bergantung pada konduktivitas termal (\(k\)).</p>
+                <div class="font-mono text-orange-300 text-[10px] bg-slate-950 p-2 rounded text-center">\( Q/t = \frac{k \cdot A \cdot \Delta T}{L} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-cyan-400 font-bold mb-2">Konveksi (Aliran)</h3>
+                <p class="text-xs mb-2">Perpindahan panas melalui zat cair atau gas yang disertai perpindahan partikel akibat perbedaan massa jenis.</p>
+                <div class="font-mono text-cyan-300 text-[10px] bg-slate-950 p-2 rounded text-center">Membentuk Arus Sirkulasi (Naik-Turun)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-yellow-400 font-bold mb-2">Radiasi (Pancaran)</h3>
+                <p class="text-xs mb-2">Perpindahan panas dalam bentuk gelombang elektromagnetik tanpa memerlukan medium (vakum).</p>
+                <div class="font-mono text-yellow-300 text-[10px] bg-slate-950 p-2 rounded text-center">\( P = e \cdot \sigma \cdot A \cdot T^4 \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1400px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-7 flex flex-col gap-6">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[400px] border border-slate-800">
+                    
+                    <div class="absolute top-4 right-4 z-20 flex gap-3 pointer-events-none">
+                        <div class="glass-panel px-5 py-2 rounded-xl text-center border-t-2 border-t-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Suhu (Target)</p>
+                            <p class="font-mono text-3xl text-white font-black drop-shadow-md" id="dispTempTarget">20.0 <span class="text-lg text-red-400">°C</span></p>
+                        </div>
+                    </div>
+
+                    <div class="absolute bottom-4 left-4 z-20 glass-panel px-4 py-2 rounded-lg border-l-4 border-l-orange-500">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Suhu Elemen Pemanas</p>
+                        <p class="font-mono text-lg text-orange-400 font-bold" id="dispTempSource">0 °C</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="800" height="400" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-red-500 p-5 shadow-xl flex-1">
+                    <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-700">
+                        <h3 class="font-bold text-white flex items-center gap-2 uppercase tracking-widest text-sm"><i data-lucide="cpu" class="text-red-400"></i> Laboratorium Termal</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mode Perpindahan Panas</label>
+                            <div class="flex flex-col gap-2">
+                                <div>
+                                    <input type="radio" name="mode" id="mCond" value="conduction" class="hidden radio-btn" checked onchange="changeMode()">
+                                    <label for="mCond" class="w-full block text-center py-2 rounded-lg text-sm font-bold text-slate-400 cursor-pointer border border-slate-600 transition hover:border-red-400">🧱 KONDUKSI (Padat)</label>
+                                </div>
+                                <div>
+                                    <input type="radio" name="mode" id="mConv" value="convection" class="hidden radio-btn" onchange="changeMode()">
+                                    <label for="mConv" class="w-full block text-center py-2 rounded-lg text-sm font-bold text-slate-400 cursor-pointer border border-slate-600 transition hover:border-red-400">🌊 KONVEKSI (Fluida)</label>
+                                </div>
+                                <div>
+                                    <input type="radio" name="mode" id="mRad" value="radiation" class="hidden radio-btn" onchange="changeMode()">
+                                    <label for="mRad" class="w-full block text-center py-2 rounded-lg text-sm font-bold text-slate-400 cursor-pointer border border-slate-600 transition hover:border-red-400">☀️ RADIASI (Pancaran)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            
+                            <div class="bg-slate-900/60 p-3 rounded-xl border border-red-500/30">
+                                <div class="flex justify-between mb-1">
+                                    <label class="text-xs font-bold text-slate-300 flex items-center gap-1"><i data-lucide="flame" class="text-orange-500" width="14"></i> Pemanas (°C)</label>
+                                    <span id="valSourceTemp" class="text-xs text-orange-400 font-mono font-bold">20 °C</span>
+                                </div>
+                                <input type="range" id="inputSourceTemp" min="20" max="500" value="20" step="10" class="slider-red w-full" oninput="updateParams()">
+                            </div>
+
+                            <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700">
+                                <div id="paramGroupA">
+                                    </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="flex gap-3 pt-5 mt-4 border-t border-slate-700">
+                        <button id="btnPlay" onclick="toggleSim()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm uppercase tracking-widest border-b-4 border-red-800 active:border-b-0 active:translate-y-1">
+                            <i data-lucide="play" width="18"></i> NYALAKAN PEMANAS
+                        </button>
+                        <button onclick="resetLab()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-3 rounded-xl transition flex justify-center items-center border border-slate-600" title="Reset & Dinginkan">
+                            <i data-lucide="rotate-ccw" width="18"></i>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-5 flex flex-col gap-6">
+                
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="line-chart" class="text-cyan-400" width="14"></i> Grafik Suhu vs Waktu</h3>
+                    </div>
+                    <div class="w-full flex-1 min-h-[220px]">
+                        <canvas id="chartTemp"></canvas>
+                    </div>
+                </div>
+                
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="server"></i> Log Telemetri Termal</h3>
+                        <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                            <i data-lucide="file-down" width="14"></i> PDF Laporan
+                        </button>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[180px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-xs md:text-sm">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="p-3 border-b border-slate-700">Waktu (s)</th>
+                                    <th class="p-3 border-b border-slate-700">Mode</th>
+                                    <th class="p-3 border-b border-slate-700 text-orange-400">Pemanas (°C)</th>
+                                    <th class="p-3 border-b border-slate-700 text-red-400">Target (°C)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="4" class="p-4 text-center text-slate-500 font-sans text-xs">Jalankan simulasi, data tercatat tiap 2 detik otomatis.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- PHYSICS STATE ---
+        let mode = 'conduction'; // conduction, convection, radiation
+        let isRunning = false;
+        let simTime = 0;
+        let lastLogTime = -1;
+        
+        const ROOM_TEMP = 20.0;
+        let sourceTemp = 20.0; // 20 to 500
+        let targetTemp = 20.0; // The temperature of the object/sensor
+
+        // Conduction Params
+        // T array represents segments of the metal bar
+        const SEGMENTS = 20;
+        let T_bar = new Array(SEGMENTS).fill(ROOM_TEMP);
+        let k_material = 0.5; // Copper default
+
+        // Convection Params
+        const NUM_PARTICLES = 150;
+        let particles = [];
+
+        // Radiation Params
+        let radDistance = 50; // cm
+
+        // Chart & Data Storage
+        let chartTemp;
+        let dataHistory = [];
+
+        // --- INITIALIZATION ---
+        function initChart() {
+            Chart.defaults.color = '#94a3b8'; 
+            Chart.defaults.font.family = 'monospace';
+
+            chartTemp = new Chart(document.getElementById('chartTemp').getContext('2d'), {
+                type: 'line',
+                data: { 
+                    labels: [],
+                    datasets: [{ 
+                        label: 'Suhu Target / Sensor (°C)', 
+                        borderColor: '#ef4444', 
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        data: [], 
+                        pointRadius: 3, 
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    animation: false,
+                    scales: { 
+                        x: { title: {display: true, text: 'Waktu (s)'} },
+                        y: { title: {display: true, text: 'Suhu (°C)'}, suggestedMin: 20, suggestedMax: 100 }
+                    }
+                }
+            });
+        }
+
+        function initParticles() {
+            particles = [];
+            for(let i=0; i<NUM_PARTICLES; i++) {
+                particles.push({
+                    x: 200 + Math.random() * 400, // Beaker area x:200 to 600
+                    y: 100 + Math.random() * 250, // Beaker area y:100 to 350
+                    temp: ROOM_TEMP,
+                    vx: (Math.random() - 0.5) * 1,
+                    vy: 0
+                });
+            }
+        }
+
+        // --- CONTROLS LOGIC ---
+        function changeMode() {
+            mode = document.querySelector('input[name="mode"]:checked').value;
+            const paramBox = document.getElementById('paramGroupA');
+            
+            if(mode === 'conduction') {
+                paramBox.innerHTML = `
+                    <label class="text-xs font-bold text-slate-300 block mb-2">Jenis Material (Logam vs Non-Logam)</label>
+                    <select id="matSelect" onchange="updateParams()" class="w-full bg-slate-800 text-slate-300 border border-slate-600 rounded p-1 outline-none text-xs">
+                        <option value="0.8">🟠 Tembaga (Konduktor Sangat Baik)</option>
+                        <option value="0.3">🔘 Besi (Konduktor Baik)</option>
+                        <option value="0.01">🟤 Kayu / Kaca (Isolator Panas)</option>
+                    </select>
+                `;
+            } else if (mode === 'convection') {
+                paramBox.innerHTML = `
+                    <label class="text-xs font-bold text-slate-300 block mb-2">Panci Kaca Tertutup</label>
+                    <p class="text-[10px] text-cyan-400 font-mono bg-cyan-900/30 p-2 rounded border border-cyan-800">Visualisasi Arus Konveksi Partikel Air saat dipanaskan dari bawah.</p>
+                `;
+            } else {
+                paramBox.innerHTML = `
+                    <div class="flex justify-between mb-1">
+                        <label class="text-xs font-bold text-slate-300">Jarak Objek ke Pemanas (cm)</label>
+                        <span id="valDist" class="text-xs text-blue-400 font-mono font-bold">50 cm</span>
+                    </div>
+                    <input type="range" id="inputDist" min="20" max="150" value="50" step="10" class="slider-blue w-full" oninput="updateParams()">
+                `;
+            }
+            resetLab(false);
+            updateParams();
+        }
+
+        function updateParams() {
+            sourceTemp = parseFloat(document.getElementById('inputSourceTemp').value);
+            document.getElementById('valSourceTemp').innerText = sourceTemp + " °C";
+            document.getElementById('dispTempSource').innerText = sourceTemp + " °C";
+
+            if(mode === 'conduction') {
+                let sel = document.getElementById('matSelect');
+                if(sel) k_material = parseFloat(sel.value);
+            } else if (mode === 'radiation') {
+                let inp = document.getElementById('inputDist');
+                if(inp) {
+                    radDistance = parseFloat(inp.value);
+                    document.getElementById('valDist').innerText = radDistance + " cm";
+                }
+            }
+        }
+
+        function toggleSim() {
+            isRunning = !isRunning;
+            const btn = document.getElementById('btnPlay');
+            
+            if(isRunning) {
+                btn.innerHTML = `<i data-lucide="power-off" width="18"></i> MATIKAN PEMANAS`;
+                btn.classList.replace('bg-red-600', 'bg-slate-700');
+                btn.classList.replace('hover:bg-red-500', 'hover:bg-slate-600');
+                btn.classList.replace('border-red-800', 'border-slate-800');
+                animFrame = requestAnimationFrame(animatePhysics);
+            } else {
+                btn.innerHTML = `<i data-lucide="play" width="18"></i> NYALAKAN PEMANAS`;
+                btn.classList.replace('bg-slate-700', 'bg-red-600');
+                btn.classList.replace('hover:bg-slate-600', 'hover:bg-red-500');
+                btn.classList.replace('border-slate-800', 'border-red-800');
+                cancelAnimationFrame(animFrame);
+            }
+            lucide.createIcons();
+        }
+
+        function resetLab(resetSource = true) {
+            isRunning = false;
+            cancelAnimationFrame(animFrame);
+            
+            simTime = 0;
+            lastLogTime = -1;
+            targetTemp = ROOM_TEMP;
+            
+            T_bar.fill(ROOM_TEMP);
+            initParticles();
+
+            // Reset UI
+            const btn = document.getElementById('btnPlay');
+            btn.innerHTML = `<i data-lucide="play" width="18"></i> NYALAKAN PEMANAS`;
+            btn.className = "flex-1 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm uppercase tracking-widest border-b-4 border-red-800 active:border-b-0 active:translate-y-1";
+            lucide.createIcons();
+
+            if(resetSource) {
+                document.getElementById('inputSourceTemp').value = 20;
+                updateParams();
+            }
+
+            // Reset Chart & Table
+            dataHistory = [];
+            chartTemp.data.labels = [];
+            chartTemp.data.datasets[0].data = [];
+            chartTemp.update();
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500 font-sans text-xs">Jalankan simulasi, data tercatat tiap 2 detik otomatis.</td></tr>';
+
+            updateHUD();
+            drawCanvas();
+        }
+
+        // --- MATH & COLOR HELPERS ---
+        function getHeatColor(temp) {
+            // Map 20C (Blue) to 500C (Red) via Yellow
+            // Normalize temp from 20 to 500 -> 0.0 to 1.0
+            let t = (Math.max(20, Math.min(500, temp)) - 20) / 480;
+            
+            // Hue from 240 (Blue) to 0 (Red)
+            let hue = (1.0 - t) * 240;
+            return `hsl(${hue}, 100%, 50%)`;
+        }
+
+        // --- PHYSICS ENGINE ---
+        function runPhysics() {
+            const dt = 0.05; // Timestep
+            simTime += dt;
+
+            if (mode === 'conduction') {
+                // 1D Heat Equation: dT/dt = alpha * d^2T/dx^2
+                // Di sini disederhanakan: Segmen i mendapat panas dari i-1 dan kehilangan ke i+1
+                
+                T_bar[0] += (sourceTemp - T_bar[0]) * 0.1; // Ujung kiri nempel pemanas
+                
+                let newT = [...T_bar];
+                for(let i=1; i<SEGMENTS-1; i++) {
+                    let flowIn = k_material * (T_bar[i-1] - T_bar[i]);
+                    let flowOut = k_material * (T_bar[i] - T_bar[i+1]);
+                    let cooling = 0.005 * (T_bar[i] - ROOM_TEMP); // Panas bocor ke udara ruangan
+                    
+                    newT[i] += (flowIn - flowOut - cooling) * dt;
+                }
+                
+                // Ujung kanan
+                let flowInLast = k_material * (T_bar[SEGMENTS-2] - T_bar[SEGMENTS-1]);
+                let coolingLast = 0.01 * (T_bar[SEGMENTS-1] - ROOM_TEMP);
+                newT[SEGMENTS-1] += (flowInLast - coolingLast) * dt;
+                
+                T_bar = [...newT];
+                targetTemp = T_bar[SEGMENTS-1]; // Sensor ditaruh di ujung kanan
+            } 
+            else if (mode === 'convection') {
+                // Fluida memanas dari bawah
+                let avgTemp = 0;
+                
+                particles.forEach(p => {
+                    // Jika dekat bawah (y > 300), terima panas
+                    if(p.y > 300) {
+                        p.temp += (sourceTemp - p.temp) * 0.05 * dt;
+                    } else if (p.y < 150) {
+                        // Jika di atas, buang panas ke lingkungan
+                        p.temp += (ROOM_TEMP - p.temp) * 0.05 * dt;
+                    }
+                    
+                    // Gaya Angkat Archimedes (Buoyancy) berdasarkan suhu
+                    // Semakin panas (> ROOM_TEMP), massa jenis turun, vy negatif (naik)
+                    let deltaT = p.temp - ROOM_TEMP;
+                    let buoyancy = deltaT * -0.05; 
+                    
+                    p.vy += buoyancy * dt;
+                    
+                    // Friction/Drag fluida
+                    p.vy *= 0.98;
+                    p.vx *= 0.98;
+                    
+                    // Gerak
+                    p.y += p.vy;
+                    p.x += p.vx;
+                    
+                    // Batas Panci
+                    if(p.y > 350) { p.y = 350; p.vy = 0; p.vx += (Math.random()-0.5)*2; }
+                    if(p.y < 100) { p.y = 100; p.vy = 0; p.vx += (Math.random()-0.5)*2; }
+                    if(p.x < 200) { p.x = 200; p.vx *= -1; }
+                    if(p.x > 600) { p.x = 600; p.vx *= -1; }
+                    
+                    avgTemp += p.temp;
+                });
+                
+                targetTemp = avgTemp / NUM_PARTICLES; // Sensor = suhu rata-rata air
+            } 
+            else if (mode === 'radiation') {
+                // Hukum Stefan-Boltzmann (Simplified) 
+                // Q_radiasi sebanding dengan T^4, tapi untuk visual real-time kita gunakan model linear/kuadratis agar perubahannya halus dan tidak langsung meledak ke infinite
+                // Panas diterima benda berbanding terbalik dengan kuadrat jarak
+                let distanceFactor = Math.pow(radDistance / 20, 2); // 20cm is base distance
+                let heatFlow = (sourceTemp - targetTemp) / distanceFactor;
+                
+                // Benda menyerap radiasi dan membuang panas ke ruang
+                let cooling = (targetTemp - ROOM_TEMP) * 0.02;
+                
+                targetTemp += (heatFlow * 0.05 - cooling) * dt;
+            }
+        }
+
+        // --- RENDER VISUAL ---
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Gambar Sumber Pemanas (Kiri / Bawah)
+            let heaterGlow = (sourceTemp - 20) / 480; // 0 to 1
+            ctx.shadowBlur = 30 * heaterGlow;
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
+            
+            if (mode === 'conduction' || mode === 'radiation') {
+                // Heater Kiri
+                let grad = ctx.createLinearGradient(0, 0, 100, 0);
+                grad.addColorStop(0, getHeatColor(sourceTemp));
+                grad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 50, 100, 300);
+                // Elemen menyala
+                ctx.fillStyle = getHeatColor(sourceTemp);
+                ctx.fillRect(80, 150, 20, 100);
+            } else if (mode === 'convection') {
+                // Heater Bawah (Kompor)
+                let grad = ctx.createLinearGradient(0, 400, 0, 350);
+                grad.addColorStop(0, getHeatColor(sourceTemp));
+                grad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = grad;
+                ctx.fillRect(200, 350, 400, 50);
+                // Api
+                ctx.fillStyle = getHeatColor(sourceTemp);
+                for(let i=250; i<550; i+=30) {
+                    ctx.beginPath(); ctx.arc(i, 360, 5 + Math.random()*5*heaterGlow, 0, Math.PI*2); ctx.fill();
+                }
+            }
+            ctx.shadowBlur = 0; // Reset
+
+            // 2. Gambar Objek Target sesuai Mode
+            if (mode === 'conduction') {
+                // Batang Logam (Terbagi jadi SEGMENTS)
+                let barX = 100; let barY = 180; let barW = 500; let barH = 40;
+                let segW = barW / SEGMENTS;
+
+                for(let i=0; i<SEGMENTS; i++) {
+                    ctx.fillStyle = getHeatColor(T_bar[i]);
+                    ctx.fillRect(barX + (i*segW), barY, segW, barH);
+                }
+                
+                // Border batang
+                ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
+                ctx.strokeRect(barX, barY, barW, barH);
+
+                // Sensor di ujung kanan
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(barX + barW - 10, barY + barH/2, 8, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(barX + barW - 10, barY + barH/2); ctx.lineTo(barX + barW + 20, barY - 20); ctx.stroke();
+            } 
+            else if (mode === 'convection') {
+                // Beaker Kaca
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.moveTo(200, 100); ctx.lineTo(200, 350); ctx.lineTo(600, 350); ctx.lineTo(600, 100); ctx.stroke();
+                
+                // Partikel
+                particles.forEach(p => {
+                    ctx.fillStyle = getHeatColor(p.temp);
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+                });
+            }
+            else if (mode === 'radiation') {
+                // Animasi Gelombang Radiasi
+                if (isRunning && sourceTemp > 20) {
+                    let waveSpeed = (simTime * 50) % 100;
+                    ctx.strokeStyle = `rgba(239, 68, 68, 0.3)`;
+                    ctx.lineWidth = 4;
+                    for(let r=waveSpeed; r<canvas.width; r+=100) {
+                        ctx.beginPath();
+                        ctx.arc(100, 200, r, -Math.PI/4, Math.PI/4);
+                        ctx.stroke();
+                    }
+                }
+
+                // Objek Target dikanan, posisinya dipengaruhi oleh radDistance (cm -> pixel scale)
+                // radDistance 20 -> x = 300, 150 -> x = 700
+                let objX = 100 + (radDistance * 4); // Skala visual
+                
+                ctx.shadowBlur = 20 * ((targetTemp - 20)/480);
+                ctx.shadowColor = getHeatColor(targetTemp);
+                ctx.fillStyle = getHeatColor(targetTemp);
+                ctx.fillRect(objX, 150, 60, 100);
+                ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth=2; ctx.strokeRect(objX, 150, 60, 100);
+                ctx.shadowBlur = 0;
+                
+                // Sensor Line
+                ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(objX + 30, 150); ctx.lineTo(objX + 30, 120); ctx.stroke();
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('dispTempTarget').innerHTML = targetTemp.toFixed(1) + ' <span class="text-lg text-red-400">°C</span>';
+            
+            // Auto Adjust Chart Y-Axis
+            let maxChart = Math.max(100, targetTemp + 20);
+            chartTemp.options.scales.y.suggestedMax = maxChart;
+        }
+
+        // --- ANIMATION LOOP ---
+        function animatePhysics() {
+            if(!isRunning) return;
+
+            runPhysics();
+            drawCanvas();
+            updateHUD();
+
+            // Log Data tiap 2 detik simulasi
+            if(simTime - lastLogTime >= 2.0) {
+                logData();
+                lastLogTime = simTime;
+            }
+
+            animFrame = requestAnimationFrame(animatePhysics);
+        }
+
+        function logData() {
+            const tStr = simTime.toFixed(1);
+            
+            // Push to Chart
+            chartTemp.data.labels.push(tStr);
+            chartTemp.data.datasets[0].data.push(targetTemp.toFixed(1));
+            chartTemp.update();
+
+            // Format nama mode
+            let modeName = mode === 'conduction' ? 'Konduksi' : (mode === 'convection' ? 'Konveksi' : 'Radiasi');
+
+            // Push to Table
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = ''; // Clear default msg
+
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${tStr}</td>
+                <td class="p-2 border-b border-slate-700/50 uppercase font-bold text-cyan-400">${modeName}</td>
+                <td class="p-2 border-b border-slate-700/50 text-orange-400 font-mono">${sourceTemp.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400 font-mono font-bold">${targetTemp.toFixed(1)}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([tStr, modeName, sourceTemp.toFixed(1), targetTemp.toFixed(1)]);
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data rekaman! Jalankan pemanas dulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Perpindahan Panas", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Analisis laju perubahan suhu (T) terhadap waktu (t).", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Waktu (s)', 'Metode Perpindahan', 'Suhu Pemanas (°C)', 'Suhu Objek Target (°C)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Perpindahan_Panas.pdf");
+        }
+
+        // Init App Start
+        initChart();
+        changeMode(); // Will call initParticles and drawCanvas
+        drawCanvas();
+    </script>
+</body>
+</html>

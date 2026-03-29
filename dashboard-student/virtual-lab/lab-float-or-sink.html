@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Float or Sink - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-teal::-webkit-slider-thumb { background: #14b8a6; box-shadow: 0 0 15px #14b8a6; }
+        .slider-blue::-webkit-slider-thumb { background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+
+        #simCanvas { background-color: #020617; width: 100%; height: auto; border-radius: 1rem; }
+        
+        .radio-btn:checked + label { border-color: #14b8a6; background-color: rgba(20, 184, 166, 0.2); color: #5eead4; }
+        
+        /* Glassmorphism panel */
+        .glass-hud { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-500 tracking-tight">⚓ Float or Sink</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Hukum Archimedes</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-teal-600/20 hover:bg-teal-600/40 border border-teal-500/30 rounded-lg text-sm font-bold text-teal-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-teal-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-teal-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Simulasi</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Atur Zat Cair:</b> Pilih antara Air, Minyak, atau Air Garam (Masing-masing memiliki massa jenis / kerapatan yang berbeda).</li>
+                    <li><b>Bentuk Benda:</b> Pilih preset (Besi, Kayu) atau gunakan "Custom" untuk mengatur Massa dan Volume sendiri secara bebas.</li>
+                    <li><b>Jatuhkan Benda:</b> Klik tombol <b class="text-blue-400">DROP OBJECT</b> dan amati bagaimana benda tersebut terombang-ambing sebelum stabil.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-yellow-400 mb-2">🎯 Mode Tantangan (Tebak Hasil)</h4>
+                    <p>Aktifkan Mode Tebak. Sebelum menjatuhkan benda, kamu <b>diwajibkan</b> memprediksi apakah benda akan Tenggelam, Melayang, atau Mengapung. Hitung dulu perbandingan \(\rho_{benda}\) dan \(\rho_{fluida}\)!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-teal-400 font-bold mb-2">Hukum Archimedes</h3>
+                <p class="text-xs mb-2">Gaya apung (\(F_a\)) sama dengan berat fluida yang dipindahkan oleh volume benda yang tercelup.</p>
+                <div class="font-mono text-teal-300 text-xs bg-slate-950 p-2 rounded">\( F_a = \rho_f \cdot g \cdot V_{celup} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-blue-400 font-bold mb-2">Syarat Mengapung</h3>
+                <p class="text-xs mb-2">Benda akan mengapung jika massa jenisnya lebih kecil dari fluida, atau jika Berat < Gaya Apung Maksimal.</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded">\( \rho_{benda} < \rho_{fluida} \)<br>\( W = F_{a(sebagian)} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-red-400 font-bold mb-2">Syarat Tenggelam</h3>
+                <p class="text-xs mb-2">Benda tenggelam jika massa jenisnya lebih besar dari fluida. Gaya apung tidak sanggup menahan beratnya.</p>
+                <div class="font-mono text-red-300 text-xs bg-slate-950 p-2 rounded">\( \rho_{benda} > \rho_{fluida} \)<br>\( W > F_{a(maksimal)} \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden flex flex-col h-[450px]">
+                
+                <div class="absolute top-4 left-4 z-20 flex gap-3">
+                    <div class="glass-hud px-4 py-2 rounded-xl text-center border-t-2 border-t-teal-400">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Volume Tercelup</p>
+                        <p class="font-mono text-xl text-white font-bold" id="hudVsub">0 %</p>
+                    </div>
+                    <div class="glass-hud px-4 py-2 rounded-xl text-center border-t-2 border-t-purple-400">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Status Kondisi</p>
+                        <p class="font-bold text-sm text-purple-300 mt-1 uppercase tracking-wider" id="hudState">DI UDARA</p>
+                    </div>
+                </div>
+
+                <div id="predictOverlay" class="hidden absolute inset-0 z-30 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <h2 class="text-2xl font-black text-yellow-400 mb-2">🎯 Mode Tebak Hasil</h2>
+                    <p class="text-slate-300 mb-6">Menurutmu, apa yang akan terjadi pada benda ini?</p>
+                    <div class="flex gap-4">
+                        <div>
+                            <input type="radio" name="guess" id="g1" value="TENGGELAM" class="hidden radio-btn" onchange="enableDrop()">
+                            <label for="g1" class="px-6 py-3 border-2 border-slate-600 rounded-xl cursor-pointer font-bold text-slate-400 transition hover:border-slate-400 block text-center">🪨 TENGGELAM</label>
+                        </div>
+                        <div>
+                            <input type="radio" name="guess" id="g2" value="MELAYANG" class="hidden radio-btn" onchange="enableDrop()">
+                            <label for="g2" class="px-6 py-3 border-2 border-slate-600 rounded-xl cursor-pointer font-bold text-slate-400 transition hover:border-slate-400 block text-center">🐟 MELAYANG</label>
+                        </div>
+                        <div>
+                            <input type="radio" name="guess" id="g3" value="TERAPUNG" class="hidden radio-btn" onchange="enableDrop()">
+                            <label for="g3" class="px-6 py-3 border-2 border-slate-600 rounded-xl cursor-pointer font-bold text-slate-400 transition hover:border-slate-400 block text-center">🚢 TERAPUNG</label>
+                        </div>
+                    </div>
+                    <button id="btnConfirmGuess" onclick="startDrop()" disabled class="mt-8 bg-blue-600 text-white font-bold py-3 px-12 rounded-xl opacity-50 cursor-not-allowed transition">KONFIRMASI & JATUHKAN</button>
+                </div>
+
+                <div id="resultMsg" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-3xl md:text-4xl font-black tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl text-center">
+                    <span id="resultText" class="text-green-400 bg-slate-900/90 px-8 py-3 rounded-xl border-2 border-green-400 block">BENAR!</span>
+                </div>
+
+                <canvas id="simCanvas" width="800" height="450" class="w-full h-full flex-1"></canvas>
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-4">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg">
+                    <h3 class="text-sm font-bold text-slate-300 mb-4 text-center">Analisis Gaya Bekerja</h3>
+                    
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="text-center w-1/2">
+                            <p class="text-xs font-bold text-red-400">Berat (W)</p>
+                            <p id="valW" class="font-mono font-bold text-lg text-white">0 N</p>
+                        </div>
+                        <div class="text-center w-1/2 border-l border-slate-700">
+                            <p class="text-xs font-bold text-blue-400">Gaya Apung (Fa)</p>
+                            <p id="valFa" class="font-mono font-bold text-lg text-white">0 N</p>
+                        </div>
+                    </div>
+                    
+                    <div class="relative h-40 w-full bg-slate-900 rounded-xl border border-slate-700 flex justify-around items-end pb-2 pt-6 px-4">
+                        <div class="w-12 bg-slate-800 rounded-t-md relative flex justify-center items-end h-full">
+                            <div id="barW" class="w-full bg-gradient-to-t from-red-600 to-red-400 rounded-t-md transition-all duration-100" style="height: 0%;"></div>
+                            <span class="absolute -top-5 text-xs font-bold text-red-400">W ↓</span>
+                        </div>
+                        <div class="w-12 bg-slate-800 rounded-t-md relative flex justify-center items-end h-full">
+                            <div id="barFa" class="w-full bg-gradient-to-t from-blue-600 to-cyan-400 rounded-t-md transition-all duration-100" style="height: 0%;"></div>
+                            <span class="absolute -top-5 text-xs font-bold text-blue-400">Fa ↑</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-700 flex justify-between">
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase">Massa Jenis Benda</p>
+                            <p id="valRhoObj" class="text-sm font-mono text-emerald-400">0 kg/L</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400 uppercase">Massa Jenis Fluida</p>
+                            <p id="valRhoFluid" class="text-sm font-mono text-cyan-400">1.0 kg/L</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-teal-500 p-5 shadow-lg lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-teal-400 flex items-center gap-2"><i data-lucide="box"></i> Setup Benda & Fluida</h3>
+                    <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700">
+                        <label class="text-xs font-bold text-slate-300 ml-2">Mode Tebak 🤔</label>
+                        <input type="checkbox" id="togglePredict" onchange="togglePredictMode()" class="w-4 h-4 mr-2 accent-yellow-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 block mb-1">Zat Cair (Fluida)</label>
+                            <select id="fluidSelect" onchange="updateSetup()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm focus:border-teal-500 outline-none">
+                                <option value="1.0">💧 Air Murni (1.0 kg/L)</option>
+                                <option value="1.025">🌊 Air Garam (1.025 kg/L)</option>
+                                <option value="0.8">🛢️ Minyak (0.8 kg/L)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 block mb-1">Pilih Benda</label>
+                            <select id="objSelect" onchange="handleObjSelect()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm focus:border-teal-500 outline-none">
+                                <option value="custom">⚙️ Custom (Atur Sendiri)</option>
+                                <option value="kayu">🟫 Balok Kayu Jati</option>
+                                <option value="besi">⬛ Balok Besi Padat</option>
+                                <option value="gabus">🟥 Gabus / Styrofoam</option>
+                                <option value="kapal">🚢 Kapal Mini (Rongga Udara)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Massa (\(m\))</label>
+                                <span id="labelMass" class="text-sm text-teal-400 font-mono font-bold">10 kg</span>
+                            </div>
+                            <input type="range" id="inputMass" min="1" max="100" value="10" class="slider-teal" oninput="updateSetup()">
+                            <p class="text-[9px] text-slate-500 mt-1">Rentang: 1 - 100 kg</p>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Volume (\(V\))</label>
+                                <span id="labelVol" class="text-sm text-blue-400 font-mono font-bold">10 Liter</span>
+                            </div>
+                            <input type="range" id="inputVol" min="1" max="100" value="10" class="slider-blue" oninput="updateSetup()">
+                            <p class="text-[9px] text-slate-500 mt-1">Rentang: 1 - 100 Liter (dm³)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col justify-center gap-4">
+                <button id="btnLaunch" onclick="startDrop()" class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider">
+                    <i data-lucide="arrow-down-to-line" width="24"></i> DROP OBJECT
+                </button>
+                
+                <button onclick="resetLab()" class="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 text-sm">
+                    <i data-lucide="rotate-ccw" width="16"></i> Angkat Kembali
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg mb-10 mt-2">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Log Eksperimen</h3>
+                <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                    <i data-lucide="file-down" width="14"></i> Export PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-48 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-sm" id="dataTable">
+                    <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Massa (kg)</th>
+                            <th class="p-3 border-b border-slate-700">Volume (L)</th>
+                            <th class="p-3 border-b border-slate-700 text-cyan-400">Fluida (\(\rho\))</th>
+                            <th class="p-3 border-b border-slate-700 text-red-400">Berat W (N)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Gaya Apung (N)</th>
+                            <th class="p-3 border-b border-slate-700 text-purple-400">Hasil Akhir</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // Variables & Physics State
+        const g = 9.8;
+        let m = 10; // kg
+        let vL = 10; // Liter
+        let rhoF = 1.0; // kg/L (Sama dengan 1000 kg/m3)
+        let rhoO = 1.0;
+        
+        let isRunning = false;
+        let hasDropped = false;
+        let isPredictMode = false;
+        let userGuess = "";
+        
+        // Physics Simulation Engine
+        let objY = 50; // Posisi Y (Center) dalam pixels
+        let objVy = 0; // Kecepatan Y
+        let sz = 60; // Ukuran visual objek dasar
+        
+        // Tangki bounds
+        const waterY = 200; // Permukaan air
+        const bottomY = 430; // Dasar tangki
+        
+        let W = 0;
+        let Fa = 0;
+        let pctSub = 0;
+
+        let dataHistory = [];
+
+        const PRESETS = {
+            'kayu': { m: 6, v: 10, icon: '🟫' }, // rho = 0.6
+            'besi': { m: 78, v: 10, icon: '⬛' }, // rho = 7.8
+            'gabus': { m: 2, v: 10, icon: '🟥' }, // rho = 0.2
+            'kapal': { m: 5, v: 40, icon: '🚢' }  // rho = 0.125 (Rongga besar)
+        };
+
+        // --- CORE LOGIC ---
+        function togglePredictMode() {
+            isPredictMode = document.getElementById('togglePredict').checked;
+            resetLab();
+        }
+
+        function enableDrop() {
+            userGuess = document.querySelector('input[name="guess"]:checked')?.value;
+            const btnConfirm = document.getElementById('btnConfirmGuess');
+            if(userGuess) {
+                btnConfirm.disabled = false;
+                btnConfirm.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnConfirm.classList.add('hover:bg-blue-700');
+            }
+        }
+
+        function handleObjSelect() {
+            const sel = document.getElementById('objSelect').value;
+            const sliderM = document.getElementById('inputMass');
+            const sliderV = document.getElementById('inputVol');
+            
+            if(sel !== 'custom') {
+                sliderM.value = PRESETS[sel].m;
+                sliderV.value = PRESETS[sel].v;
+                sliderM.disabled = true; sliderV.disabled = true;
+                sliderM.classList.add('opacity-50'); sliderV.classList.add('opacity-50');
+            } else {
+                sliderM.disabled = false; sliderV.disabled = false;
+                sliderM.classList.remove('opacity-50'); sliderV.classList.remove('opacity-50');
+            }
+            updateSetup();
+        }
+
+        function updateSetup() {
+            if(isRunning) return;
+            
+            m = parseFloat(document.getElementById('inputMass').value);
+            vL = parseFloat(document.getElementById('inputVol').value);
+            rhoF = parseFloat(document.getElementById('fluidSelect').value);
+            
+            rhoO = m / vL;
+
+            document.getElementById('labelMass').innerText = m + " kg";
+            document.getElementById('labelVol').innerText = vL + " Liter";
+            
+            document.getElementById('valRhoObj').innerText = rhoO.toFixed(2) + " kg/L";
+            document.getElementById('valRhoFluid').innerText = rhoF.toFixed(3) + " kg/L";
+
+            // Visual Size adaptation (Akar pangkat 3 atau proporsional logis)
+            sz = 40 + (Math.sqrt(vL) * 5); // Estetika visual saja
+
+            objY = 100; // Standby position di udara
+            objVy = 0;
+            pctSub = 0;
+            
+            W = m * g;
+            Fa = 0;
+            
+            updateHUD();
+            drawArena();
+        }
+
+        // --- PHYSICS CALCULATION ---
+        function calculateForces() {
+            // Hitung persentase tercelup
+            let topEdge = objY - sz/2;
+            let bottomEdge = objY + sz/2;
+            
+            if (bottomEdge <= waterY) {
+                pctSub = 0;
+            } else if (topEdge >= waterY) {
+                pctSub = 1;
+            } else {
+                pctSub = (bottomEdge - waterY) / sz;
+            }
+
+            // Rumus Archimedes: Fa = rho_fluida * g * V_tercelup
+            // Karena rho dalam kg/L dan V dalam L, hasilnya identik dengan kg/m3 * m3
+            let vSub = pctSub * vL;
+            Fa = rhoF * g * vSub;
+            W = m * g;
+            
+            // Fnet = W (Bawah +) - Fa (Atas -)
+            let fNet = W - Fa;
+            
+            // Damping (Gaya gesek air meredam goyangan)
+            let damping = 0;
+            if (pctSub > 0) {
+                damping = 15 * pctSub * objVy; // Air mengerem benda
+            }
+            
+            let a = (fNet - damping) / m;
+            
+            // Integrasi kecepatan & posisi (dt = 0.05)
+            objVy += a * 0.05;
+            objY += objVy * 2.0; // multiplier visual pixel
+
+            // Collision Dasar Tangki
+            if (bottomEdge > bottomY) {
+                objY = bottomY - sz/2;
+                objVy = -objVy * 0.3; // Pantulan kecil
+                if(Math.abs(objVy) < 0.5) objVy = 0;
+            }
+        }
+
+        // --- RENDER VISUAL ---
+        let waterAnimTime = 0;
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            waterAnimTime += 0.05;
+
+            // DRAW FLUID
+            let fColorTop = 'rgba(56, 189, 248, 0.4)'; let fColorBot = 'rgba(2, 132, 199, 0.8)';
+            if(rhoF === 0.8) { fColorTop = 'rgba(250, 204, 21, 0.4)'; fColorBot = 'rgba(161, 98, 7, 0.8)'; } // Minyak
+            else if(rhoF === 1.025) { fColorTop = 'rgba(45, 212, 191, 0.4)'; fColorBot = 'rgba(15, 118, 110, 0.8)'; } // Air Garam
+
+            let fluidGrad = ctx.createLinearGradient(0, waterY, 0, bottomY);
+            fluidGrad.addColorStop(0, fColorTop); fluidGrad.addColorStop(1, fColorBot);
+            
+            ctx.fillStyle = fluidGrad;
+            ctx.fillRect(0, waterY, canvas.width, bottomY - waterY);
+
+            // Gelombang Permukaan
+            ctx.beginPath();
+            ctx.strokeStyle = fColorTop.replace('0.4', '0.8'); ctx.lineWidth = 3;
+            for(let i=0; i<=canvas.width; i+=10) {
+                let yW = waterY + Math.sin((i*0.02) + waterAnimTime)*4;
+                if(i===0) ctx.moveTo(i, yW); else ctx.lineTo(i, yW);
+            }
+            ctx.lineTo(canvas.width, bottomY); ctx.lineTo(0, bottomY); ctx.fill();
+
+            // DRAW TANK BORDERS
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(50, 50); ctx.lineTo(50, bottomY); ctx.lineTo(canvas.width-50, bottomY); ctx.lineTo(canvas.width-50, 50); ctx.stroke();
+
+            // DRAW OBJECT
+            let objX = canvas.width / 2;
+            let sel = document.getElementById('objSelect').value;
+            let icon = '📦';
+            let color = '#94a3b8';
+            
+            if(sel === 'kayu') { icon = PRESETS.kayu.icon; color = '#92400e'; }
+            else if(sel === 'besi') { icon = PRESETS.besi.icon; color = '#334155'; }
+            else if(sel === 'gabus') { icon = PRESETS.gabus.icon; color = '#f87171'; }
+            else if(sel === 'kapal') { icon = PRESETS.kapal.icon; color = 'transparent'; }
+
+            // Kotak / Bentuk
+            if(sel !== 'kapal') {
+                ctx.fillStyle = color;
+                ctx.fillRect(objX - sz/2, objY - sz/2, sz, sz);
+                ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.strokeRect(objX - sz/2, objY - sz/2, sz, sz);
+            }
+            
+            // Icon Center
+            ctx.font = `${sz*0.6}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(icon, objX, objY);
+
+            // Highlight Bagian Tercelup
+            if(pctSub > 0 && pctSub < 1 && sel !== 'kapal') {
+                let hSubPx = sz * pctSub;
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillRect(objX - sz/2, objY + sz/2 - hSubPx, sz, hSubPx);
+            }
+
+            if(!isRunning && !hasDropped) requestAnimationFrame(drawArena);
+        }
+
+        function updateHUD() {
+            document.getElementById('hudVsub').innerText = (pctSub * 100).toFixed(0) + " %";
+            document.getElementById('valW').innerText = W.toFixed(1) + " N";
+            document.getElementById('valFa').innerText = Fa.toFixed(1) + " N";
+            
+            // Update Bar Chart HTML
+            let maxF = Math.max(100, W, Fa, 1000); // Normalize scale
+            let pctW = (W / maxF) * 100;
+            let pctFa = (Fa / maxF) * 100;
+            
+            document.getElementById('barW').style.height = `${Math.min(100, pctW)}%`;
+            document.getElementById('barFa').style.height = `${Math.min(100, pctFa)}%`;
+
+            // State Text
+            let stateTxt = "DI UDARA";
+            if (pctSub > 0) {
+                if (Math.abs(objVy) > 0.5) stateTxt = "TEROMBANG-AMBING...";
+                else if (pctSub === 1 && objY + sz/2 >= bottomY - 1) stateTxt = "TENGGELAM";
+                else if (pctSub === 1) stateTxt = "MELAYANG";
+                else stateTxt = "TERAPUNG";
+            }
+            document.getElementById('hudState').innerText = stateTxt;
+        }
+
+        // --- ANIMATION LOOP ---
+        let stableTimer = 0;
+
+        function animate() {
+            if(!isRunning) return;
+            
+            calculateForces();
+            updateHUD();
+            drawArena();
+
+            // Cek Keseimbangan (Benda berhenti goyang)
+            if (pctSub > 0 && Math.abs(objVy) < 0.1 && Math.abs((W - Fa)/m) < 0.2) {
+                stableTimer++;
+                if(stableTimer > 30) {
+                    finishSim();
+                    return; // Stop animation loop
+                }
+            } else {
+                stableTimer = 0; // Reset if moving
+            }
+
+            animFrame = requestAnimationFrame(animate);
+        }
+
+        // --- CONTROLS ---
+        function startDrop() {
+            if(isPredictMode && !userGuess) {
+                document.getElementById('predictOverlay').classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('predictOverlay').classList.add('hidden');
+            
+            if(!isRunning && !hasDropped) {
+                isRunning = true; hasDropped = true; stableTimer = 0;
+                document.getElementById('btnLaunch').disabled = true;
+                document.getElementById('btnLaunch').classList.add('opacity-50');
+                
+                // Kunci input
+                document.getElementById('fluidSelect').disabled = true;
+                document.getElementById('objSelect').disabled = true;
+                document.getElementById('inputMass').disabled = true;
+                document.getElementById('inputVol').disabled = true;
+                
+                animFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        function finishSim() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            
+            let finalState = document.getElementById('hudState').innerText;
+            
+            // Check Predict Mode Result
+            if(isPredictMode) {
+                const resBox = document.getElementById('resultMsg');
+                const resTxt = document.getElementById('resultText');
+                resBox.classList.remove('opacity-0');
+                
+                if(userGuess === finalState) {
+                    resTxt.innerText = "🎯 TEPAT! HASIL: " + finalState;
+                    resTxt.className = "text-green-400 bg-slate-900/90 px-8 py-3 rounded-xl border-2 border-green-400 block";
+                } else {
+                    resTxt.innerText = "❌ SALAH! HASIL: " + finalState;
+                    resTxt.className = "text-red-400 bg-slate-900/90 px-8 py-3 rounded-xl border-2 border-red-400 block";
+                }
+            }
+
+            // Log to Table
+            let fName = document.getElementById('fluidSelect').options[document.getElementById('fluidSelect').selectedIndex].text.split(' ')[1];
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 font-bold">${m}</td>
+                <td class="p-2 border-b border-slate-700/50">${vL}</td>
+                <td class="p-2 border-b border-slate-700/50 text-cyan-400">${rhoF} (${fName})</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400">${W.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400">${Fa.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-purple-400 font-bold">${finalState}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            dataHistory.push([m, vL, `${rhoF} (${fName})`, W.toFixed(1), Fa.toFixed(1), finalState]);
+        }
+
+        function resetLab() {
+            isRunning = false; hasDropped = false; userGuess = "";
+            cancelAnimationFrame(animFrame);
+            
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50');
+            document.getElementById('resultMsg').classList.add('opacity-0');
+            
+            // Buka kunci input
+            document.getElementById('fluidSelect').disabled = false;
+            document.getElementById('objSelect').disabled = false;
+            handleObjSelect(); // Reset slider disable state based on select
+            
+            // Reset UI Radio Guess
+            document.querySelectorAll('input[name="guess"]').forEach(el => el.checked = false);
+            document.getElementById('btnConfirmGuess').disabled = true;
+            document.getElementById('btnConfirmGuess').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            updateSetup();
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Jatuhkan benda minimal sekali.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Eksperimen Hukum Archimedes", 14, 20);
+            
+            doc.autoTable({ startY: 30, head: [['Massa (kg)', 'Volume (L)', 'Fluida', 'Berat (N)', 'Gaya Apung (N)', 'Status']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            doc.save("Laporan_Hukum_Archimedes.pdf");
+        }
+
+        // Init App
+        handleObjSelect();
+        updateSetup();
+    </script>
+</body>
+</html>

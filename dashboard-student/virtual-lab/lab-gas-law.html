@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Law Simulator - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #3b82f6;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        
+        .slider-blue::-webkit-slider-thumb { border-color: #3b82f6; background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+        .slider-red::-webkit-slider-thumb { border-color: #ef4444; background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; border: 1px solid #334155; }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500 tracking-tight">💨 Gas Law Simulator</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Hukum Boyle, Charles, Gay-Lussac</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Rumus Gas</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto text-sm text-slate-300">
+            <h3 class="text-cyan-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="flask-conical"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">1. Pilih Hukum Gas (Kunci Variabel)</h4>
+                    <p class="text-xs">Kamu harus mengunci salah satu variabel agar tetap konstan. Pilih Isotermal (T tetap), Isobarik (P tetap), atau Isokhorik (V tetap).</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">2. Manipulasi Sistem</h4>
+                    <p class="text-xs">Gunakan slider yang aktif untuk mengubah keadaan gas. Perhatikan animasi Piston yang naik/turun dan indikator api (suhu) di bawah tangki.</p>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <h4 class="font-bold text-emerald-400 mb-2">📊 Auto-Switch Axis</h4>
+                    <p class="text-xs">Grafik akan menyesuaikan sumbu X dan Y-nya secara otomatis berdasarkan Hukum yang sedang kamu uji. Tekan "Catat Data" untuk mulai menggambar grafik!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-emerald-400 font-bold mb-2 text-center">Hukum Boyle (T Tetap)</h3>
+                <p class="text-xs mb-2 text-center">Volume berbanding terbalik dengan Tekanan. Jika ditekan, volume mengecil.</p>
+                <div class="font-mono text-emerald-300 text-xs bg-slate-950 p-2 rounded text-center border border-emerald-900">\( P_1 V_1 = P_2 V_2 \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-blue-400 font-bold mb-2 text-center">Hukum Charles (P Tetap)</h3>
+                <p class="text-xs mb-2 text-center">Volume berbanding lurus dengan Suhu mutlak. Gas memuai saat dipanaskan.</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded text-center border border-blue-900">\( \frac{V_1}{T_1} = \frac{V_2}{T_2} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-red-400 font-bold mb-2 text-center">Hukum Gay-Lussac (V Tetap)</h3>
+                <p class="text-xs mb-2 text-center">Tekanan berbanding lurus dengan Suhu mutlak. Panci tertutup akan meledak jika dipanaskan.</p>
+                <div class="font-mono text-red-300 text-xs bg-slate-950 p-2 rounded text-center border border-red-900">\( \frac{P_1}{T_1} = \frac{P_2}{T_2} \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1400px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-7 flex flex-col gap-4">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[450px]">
+                    
+                    <div class="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-l-4 border-emerald-500">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Tekanan (P)</p>
+                            <p class="font-mono text-2xl text-emerald-400 font-black" id="dispP">1.00 <span class="text-sm">atm</span></p>
+                        </div>
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-l-4 border-blue-500">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Volume (V)</p>
+                            <p class="font-mono text-2xl text-blue-400 font-black" id="dispV">10.0 <span class="text-sm">L</span></p>
+                        </div>
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-l-4 border-red-500">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Suhu (T)</p>
+                            <p class="font-mono text-2xl text-red-400 font-black" id="dispT">300 <span class="text-sm">K</span></p>
+                        </div>
+                    </div>
+
+                    <div id="insightText" class="absolute top-4 right-4 z-20 glass-panel px-4 py-2 rounded-xl border border-slate-600 max-w-[200px] text-right transition-all">
+                        <p class="text-[10px] font-bold text-yellow-400 uppercase mb-1">Status Sistem</p>
+                        <p class="text-xs text-white font-medium" id="insightDesc">Menunggu input...</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="600" height="450" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-slate-500 p-5 shadow-xl">
+                    
+                    <div class="mb-5 border-b border-slate-700 pb-5">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Pilih Hukum Gas (Variabel Konstan)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gasLaw" value="boyle" class="hidden peer" checked onchange="changeMode()">
+                                <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 transition">
+                                    <span class="block text-xs font-bold text-slate-300 peer-checked:text-emerald-400">BOYLE</span>
+                                    <span class="text-[9px] text-slate-500">T Tetap</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gasLaw" value="charles" class="hidden peer" onchange="changeMode()">
+                                <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500/10 transition">
+                                    <span class="block text-xs font-bold text-slate-300 peer-checked:text-blue-400">CHARLES</span>
+                                    <span class="text-[9px] text-slate-500">P Tetap</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gasLaw" value="gaylussac" class="hidden peer" onchange="changeMode()">
+                                <div class="text-center p-2 rounded-lg border border-slate-600 peer-checked:border-red-500 peer-checked:bg-red-500/10 transition">
+                                    <span class="block text-xs font-bold text-slate-300 peer-checked:text-red-400">GAY-LUSSAC</span>
+                                    <span class="text-[9px] text-slate-500">V Tetap</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/80 transition-opacity" id="panelVol">
+                            <div class="flex justify-between mb-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">Volume (V)</label>
+                                <span id="valV" class="text-xs font-mono text-blue-400 font-bold">10.0 L</span>
+                            </div>
+                            <input type="range" id="inputV" min="2" max="20" value="10" step="0.5" class="slider-blue w-full" oninput="updatePhysics('V')">
+                        </div>
+
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/80 transition-opacity" id="panelTemp">
+                            <div class="flex justify-between mb-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">Suhu Gas (T)</label>
+                                <span id="valT" class="text-xs font-mono text-red-400 font-bold">300 K</span>
+                            </div>
+                            <input type="range" id="inputT" min="100" max="900" value="300" step="10" class="slider-red w-full" oninput="updatePhysics('T')">
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-5 flex flex-col gap-4">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="recordData()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm border border-blue-500">
+                        <i data-lucide="pen-tool" width="16"></i> Catat Keadaan Gas
+                    </button>
+                    <button onclick="resetLab()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm border border-slate-600">
+                        <i data-lucide="rotate-ccw" width="16"></i> Reset Eksperimen
+                    </button>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="line-chart" class="text-cyan-400" width="14"></i> Grafik Relasi</h3>
+                        <span id="chartTitle" class="text-[9px] font-bold bg-slate-700 px-2 py-1 rounded text-white">P vs V</span>
+                    </div>
+                    <div class="w-full flex-1 min-h-[220px]"><canvas id="mainChart"></canvas></div>
+                </div>
+                
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2 text-sm"><i data-lucide="server" width="16"></i> Log Data Keadaan Gas</h3>
+                        <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1 rounded-lg text-[10px] font-bold border border-red-500/30 transition">
+                            PDF Export
+                        </button>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[160px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-700">Modus</th>
+                                    <th class="p-2 border-b border-slate-700 text-emerald-400">P (atm)</th>
+                                    <th class="p-2 border-b border-slate-700 text-blue-400">V (L)</th>
+                                    <th class="p-2 border-b border-slate-700 text-red-400">T (K)</th>
+                                    <th class="p-2 border-b border-slate-700 text-slate-300">Konstanta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">Belum ada data rekaman.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- PHYSICS STATE & VARIABLES ---
+        // PV = nRT -> For simplicity: PV/T = k (constant)
+        // Base state: P=1 atm, V=10 L, T=300 K -> k = 10/300 = 1/30
+        const k_gas = 10.0 / 300.0;
+        
+        let P = 1.0;  // atm
+        let V = 10.0; // Liter
+        let T = 300.0;// Kelvin
+
+        let currentLaw = 'boyle'; // boyle (T const), charles (P const), gaylussac (V const)
+        
+        // Particles Engine
+        const NUM_PARTICLES = 100;
+        let particles = [];
+        
+        // Container visuals
+        const cX = canvas.width / 2;
+        const cBaseY = 380; // Dasar tangki
+        const cWidth = 200; // Lebar tangki
+        // Tinggi tangki (max 20 L) => V_max = 20, max height = 260px
+        let pistonY = 0; // Calculated in render
+
+        // Data Storage
+        let dataHistory = [];
+        let recordCount = 0;
+        let mainChart;
+
+        // --- CHARTS INITIALIZATION ---
+        function initChart() {
+            Chart.defaults.color = '#64748b'; 
+            Chart.defaults.font.family = 'monospace';
+
+            mainChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
+                type: 'scatter',
+                data: { 
+                    datasets: [{ 
+                        label: 'Data Eksperimen', 
+                        borderColor: '#10b981', // Default green
+                        backgroundColor: '#34d399',
+                        data: [], 
+                        pointRadius: 5, 
+                        borderWidth: 2,
+                        showLine: true,
+                        tension: 0.3
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        x: { title: {display: true, text: 'Volume (L)'}, min: 0 },
+                        y: { title: {display: true, text: 'Tekanan (atm)'}, min: 0 }
+                    }
+                }
+            });
+        }
+
+        // --- PARTICLE LOGIC ---
+        function initParticles() {
+            particles = [];
+            for(let i=0; i<NUM_PARTICLES; i++) {
+                particles.push({
+                    x: cX - cWidth/2 + 10 + Math.random()*(cWidth-20),
+                    y: cBaseY - 50 - Math.random()*50, // Spawn safe zone
+                    vx: (Math.random()-0.5)*2,
+                    vy: (Math.random()-0.5)*2
+                });
+            }
+        }
+
+        function updateParticleSpeeds() {
+            // Speed proporsional dgn akar T
+            let speedScale = Math.sqrt(T) * 0.15;
+            particles.forEach(p => {
+                let currentSpeed = Math.sqrt(p.vx*p.vx + p.vy*p.vy) || 1;
+                p.vx = (p.vx / currentSpeed) * speedScale;
+                p.vy = (p.vy / currentSpeed) * speedScale;
+            });
+        }
+
+        // --- CONTROLS & LOGIC ---
+        function changeMode() {
+            currentLaw = document.querySelector('input[name="gasLaw"]:checked').value;
+            
+            const pVol = document.getElementById('panelVol');
+            const pTemp = document.getElementById('panelTemp');
+            
+            // Atur interaktivitas slider
+            if(currentLaw === 'boyle') {
+                // T Konstan. Bebas ubah V. P dihitung.
+                pVol.classList.remove('opacity-50', 'pointer-events-none');
+                pTemp.classList.add('opacity-50', 'pointer-events-none');
+                
+                setupChartAxis('Volume (L)', 'Tekanan (atm)', '#10b981', 'P vs V (Isotermal)');
+                document.getElementById('insightDesc').innerText = "T konstan. Ubah Volume untuk melihat Tekanan berbanding terbalik (Hiperbola).";
+            } 
+            else if (currentLaw === 'charles') {
+                // P Konstan. Bebas ubah T. V dihitung (Piston gerak sendiri).
+                pVol.classList.add('opacity-50', 'pointer-events-none');
+                pTemp.classList.remove('opacity-50', 'pointer-events-none');
+                
+                setupChartAxis('Suhu (K)', 'Volume (L)', '#3b82f6', 'V vs T (Isobarik)');
+                document.getElementById('insightDesc').innerText = "P konstan. Panaskan gas (T naik) agar Volume memuai mendorong piston (Linear).";
+            }
+            else if (currentLaw === 'gaylussac') {
+                // V Konstan. Bebas ubah T. P dihitung.
+                pVol.classList.add('opacity-50', 'pointer-events-none');
+                pTemp.classList.remove('opacity-50', 'pointer-events-none');
+                
+                setupChartAxis('Suhu (K)', 'Tekanan (atm)', '#ef4444', 'P vs T (Isokhorik)');
+                document.getElementById('insightDesc').innerText = "V konstan. Panaskan gas (T naik), partikel akan menabrak keras menaikkan Tekanan (Linear).";
+            }
+
+            // Hapus data lama tiap ganti mode agar grafik rapi
+            mainChart.data.datasets[0].data = [];
+            mainChart.update();
+        }
+
+        function setupChartAxis(xLabel, yLabel, color, title) {
+            mainChart.options.scales.x.title.text = xLabel;
+            mainChart.options.scales.y.title.text = yLabel;
+            mainChart.data.datasets[0].borderColor = color;
+            mainChart.data.datasets[0].backgroundColor = color;
+            mainChart.update();
+            document.getElementById('chartTitle').innerText = title;
+        }
+
+        function updatePhysics(triggerSource) {
+            // PV/T = k -> P = (k * T) / V
+            
+            if(currentLaw === 'boyle') {
+                // T tetap (300). Trigger dari slider V.
+                V = parseFloat(document.getElementById('inputV').value);
+                P = (k_gas * T) / V;
+            } 
+            else if (currentLaw === 'charles') {
+                // P tetap (1.0). Trigger dari slider T.
+                T = parseFloat(document.getElementById('inputT').value);
+                V = (k_gas * T) / P;
+                
+                // Batasi agar piston tidak tembus atap (Max V = 20)
+                if(V > 20) { V = 20; T = (P * V) / k_gas; document.getElementById('inputT').value = T; }
+                if(V < 2) { V = 2; T = (P * V) / k_gas; document.getElementById('inputT').value = T; }
+                
+                document.getElementById('inputV').value = V;
+            }
+            else if (currentLaw === 'gaylussac') {
+                // V tetap (10.0). Trigger dari slider T.
+                T = parseFloat(document.getElementById('inputT').value);
+                P = (k_gas * T) / V;
+            }
+
+            // Sync UI Text
+            document.getElementById('valV').innerText = V.toFixed(1) + " L";
+            document.getElementById('valT').innerText = T.toFixed(0) + " K";
+            
+            document.getElementById('dispP').innerHTML = P.toFixed(2) + ' <span class="text-sm">atm</span>';
+            document.getElementById('dispV').innerHTML = V.toFixed(1) + ' <span class="text-sm">L</span>';
+            document.getElementById('dispT').innerHTML = T.toFixed(0) + ' <span class="text-sm">K</span>';
+
+            updateParticleSpeeds();
+        }
+
+        // --- RENDER VISUAL (CANVAS 2D) ---
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Konversi Volume ke Tinggi Piston
+            // V range: 0 -> 20. Max height = 260px.
+            // 1 Liter = 13 px.
+            let hPistonVisual = V * 13;
+            pistonY = cBaseY - hPistonVisual;
+
+            // 1. Gambar Base Tangki Kaca (Belakang)
+            ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
+            ctx.fillRect(cX - cWidth/2, cBaseY - 260, cWidth, 260);
+
+            // 2. Gambar Partikel Gas
+            let partColor = '#3b82f6'; // Dingin (Biru)
+            if(T > 400 && T < 700) partColor = '#f59e0b'; // Sedang (Kuning)
+            if(T >= 700) partColor = '#ef4444'; // Panas (Merah)
+
+            ctx.fillStyle = partColor;
+            particles.forEach(p => {
+                // Update gerak
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // Tumbukan dinding (Batas)
+                if(p.x < cX - cWidth/2 + 4) { p.x = cX - cWidth/2 + 4; p.vx *= -1; }
+                if(p.x > cX + cWidth/2 - 4) { p.x = cX + cWidth/2 - 4; p.vx *= -1; }
+                if(p.y > cBaseY - 4) { p.y = cBaseY - 4; p.vy *= -1; }
+                
+                // Tumbukan Atap (Piston) -> Piston bisa naik turun
+                if(p.y < pistonY + 14) { p.y = pistonY + 14; p.vy *= -1; }
+
+                ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            });
+
+            // 3. Gambar Tangki Kaca (Garis Depan)
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(cX - cWidth/2, cBaseY - 260);
+            ctx.lineTo(cX - cWidth/2, cBaseY);
+            ctx.lineTo(cX + cWidth/2, cBaseY);
+            ctx.lineTo(cX + cWidth/2, cBaseY - 260);
+            ctx.stroke();
+
+            // 4. Gambar Piston (Plat Abu-abu)
+            ctx.fillStyle = '#64748b'; // Piston head
+            ctx.fillRect(cX - cWidth/2 + 2, pistonY, cWidth - 4, 10);
+            
+            // Gagang piston
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(cX - 5, 20, 10, pistonY - 20);
+            
+            // Handle Atas
+            ctx.fillRect(cX - 30, 10, 60, 10);
+
+            // 5. Beban di Atas Piston (Untuk visualisasi Hukum Charles: Tekanan Tetap)
+            if(currentLaw === 'charles') {
+                ctx.fillStyle = '#334155'; ctx.fillRect(cX - 20, pistonY - 20, 40, 20);
+                ctx.fillStyle = '#fff'; ctx.font = "10px Arial"; ctx.textAlign = "center"; ctx.fillText("1 atm", cX, pistonY - 6);
+            }
+
+            // 6. Efek Pemanas di Bawah Tangki
+            if (T > 300) {
+                let heatScale = (T - 300) / 600; // 0 to 1
+                ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 30 * heatScale;
+                ctx.fillStyle = `rgba(239, 68, 68, ${heatScale})`;
+                ctx.fillRect(cX - cWidth/2, cBaseY + 5, cWidth, 15);
+                ctx.shadowBlur = 0; // reset
+            }
+
+            animFrame = requestAnimationFrame(drawArena);
+        }
+
+        // --- DATA SNAPSHOT ---
+        function recordData() {
+            let xVal, yVal;
+            let constName = "";
+
+            if(currentLaw === 'boyle') { xVal = V; yVal = P; constName = `T = ${T.toFixed(0)} K`; }
+            else if(currentLaw === 'charles') { xVal = T; yVal = V; constName = `P = ${P.toFixed(2)} atm`; }
+            else if(currentLaw === 'gaylussac') { xVal = T; yVal = P; constName = `V = ${V.toFixed(1)} L`; }
+
+            // Push to Chart
+            mainChart.data.datasets[0].data.push({ x: xVal, y: yVal });
+            mainChart.data.datasets[0].data.sort((a,b) => a.x - b.x); // Sort for line drawing
+            mainChart.update();
+
+            // Push to Table
+            recordCount++;
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = ''; // Hapus pesan kosong
+            
+            let lawDisplay = currentLaw === 'boyle' ? 'BOYLE' : (currentLaw === 'charles' ? 'CHARLES' : 'GAY-LUSSAC');
+
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 uppercase text-[10px] font-bold text-slate-400">${lawDisplay}</td>
+                <td class="p-2 border-b border-slate-700/50 text-emerald-400 font-bold">${P.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400">${V.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400">${T.toFixed(0)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-slate-500 font-bold">${constName}</td>
+            </tr>`;
+            
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([lawDisplay, P.toFixed(2), V.toFixed(1), T.toFixed(0), constName]);
+        }
+
+        function resetLab() {
+            recordCount = 0;
+            dataHistory = [];
+            
+            mainChart.data.datasets[0].data = [];
+            mainChart.update();
+            
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans text-xs">Belum ada data rekaman.</td></tr>';
+            
+            document.getElementById('inputV').value = 10;
+            document.getElementById('inputT').value = 300;
+            updatePhysics();
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Tekan tombol 'Catat Keadaan Gas' terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Hukum Gas Ideal", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Analisis hubungan antara Tekanan (P), Volume (V), dan Suhu (T).", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Hukum Uji', 'Tekanan P (atm)', 'Volume V (L)', 'Suhu T (K)', 'Variabel Konstan']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Hukum_Gas.pdf");
+        }
+
+        // Init App Start
+        initChart();
+        initParticles();
+        changeMode(); 
+        drawArena(); // Start Loop
+    </script>
+</body>
+</html>

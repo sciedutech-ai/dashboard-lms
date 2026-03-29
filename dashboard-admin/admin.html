@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MTS Tarbiyatus Syarifah</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+    <link rel="stylesheet" href="style-admin.css">
+    <link rel="stylesheet" href="sidebar-admin.css">
+</head>
+<body class="bg-slate-50 font-sans text-slate-900 h-screen overflow-hidden relative">
+
+    <div id="login-container" class="absolute inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
+            <div class="bg-green-600 p-6 text-center">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i data-lucide="shield-check" class="text-green-600" width="32" height="32"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white tracking-wide">Admin<span class="text-green-200">Panel</span></h1>
+                <p class="text-green-100 text-sm mt-1">MTS Tarbiyatus Syarifah</p>
+            </div>
+            <div class="p-8">
+                <form id="adminLoginForm" onsubmit="handleAdminLogin(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Email Admin</label>
+                        <div class="relative">
+                            <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="18"></i>
+                            <input type="email" id="adminEmail" required placeholder="admin@mtsts.sc.id" class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Kata Sandi</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="18"></i>
+                            <input type="password" id="adminPassword" required placeholder="••••••••" class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition">
+                        </div>
+                    </div>
+                    <button type="submit" id="btnLogin" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition shadow-lg mt-2 flex justify-center items-center gap-2">
+                        Masuk Sistem <i data-lucide="arrow-right" width="18"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden w-full h-full flex min-h-screen overflow-hidden">
+        
+        <div id="mobile-overlay" class="hidden" onclick="toggleMobileMenu()"></div>
+
+        <aside id="sidebar" class="bg-slate-900 text-white border-r border-slate-800 flex flex-col">
+        <div class="p-6 flex items-center justify-between lg:justify-center border-b border-slate-800 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-green-900/50">A</div>
+                <span class="font-bold text-lg tracking-wide">Admin<span class="text-green-400">Panel</span></span>
+            </div>
+            <button onclick="toggleMobileMenu()" class="lg:hidden text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+        </div>
+        
+        <div class="px-4 py-6 flex-1 overflow-y-auto">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">Menu Utama</div>
+            <nav id="nav-container" class="space-y-1"></nav>
+        </div>
+        
+        <div class="p-4 border-t border-slate-800 bg-slate-900 shrink-0">
+            <button onclick="handleAdminLogout()" class="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-slate-800 rounded-lg transition text-sm font-medium">
+                <i data-lucide="log-out" width="18"></i> Keluar Sistem
+            </button>
+        </div>
+    </aside>
+
+        <main class="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+            <header class="bg-white sticky top-0 z-30 px-6 py-4 border-b border-slate-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleMobileMenu()" class="lg:hidden p-2 hover:bg-slate-100 rounded-lg text-slate-600"><i data-lucide="menu"></i></button>
+                    <h2 id="page-title" class="font-bold text-lg text-slate-800 hidden sm:block">Dashboard</h2>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="relative hidden md:block">
+                        <input type="text" id="globalSearch" placeholder="Cari data..." class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-green-500 focus:bg-white transition-all w-64">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16"></i>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+                            <div class="text-right hidden md:block">
+                                <div class="text-sm font-bold text-slate-800" id="admin-name">Memuat...</div>
+                                <div class="text-xs text-slate-500" id="admin-email">Role</div>
+                            </div>
+                            <img id="admin-avatar" src="" alt="Profile" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200" />
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-slate-50/50">
+                <div id="main-content" class="max-w-7xl mx-auto pb-10"></div>
+                <footer class="mt-8 py-6 text-center text-slate-400 text-xs border-t border-slate-200">
+                    <p>&copy; 2026 <span id="footer-school">Sekolah Rakyat</span>. Sistem Informasi Manajemen Sekolah v2.0</p>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <div id="studentModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeStudentModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900" id="modalTitle">Tambah Siswa Baru</h3>
+                        <button onclick="closeStudentModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    
+                    <form id="studentForm" class="space-y-4">
+                        <input type="hidden" id="studentId"> <div class="bg-green-50 p-3 rounded-md mb-2"><h4 class="text-sm font-bold text-green-800 uppercase">A. Identitas Siswa</h4></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            
+                        <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <img id="studentPhotoPreview" src="https://api.dicebear.com/7.x/avataaars/svg?seed=new&backgroundColor=bfdbfe" class="w-16 h-16 rounded-full border-2 border-white shadow-sm object-cover">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Foto Profil Siswa (Opsional)</label>
+                                <input type="file" id="studentPhoto" accept="image/*" onchange="handleStudentPhoto(event)" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer">
+                            </div>
+                        </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Nama Lengkap</label>
+                                <input type="text" id="fullName" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">NISN (Username)</label>
+                                <input type="number" id="nisn" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Kelas</label>
+                                <select id="kelas" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                                    <option value="VII">VII (Tujuh)</option>
+                                    <option value="VIII">VIII (Delapan)</option>
+                                    <option value="IX">IX (Sembilan)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Nomor Absen</label>
+                                <input type="number" id="absen" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Tempat Lahir</label>
+                                <input type="text" id="pob" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Tanggal Lahir</label>
+                                <input type="date" id="dob" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div class="bg-green-50 p-3 rounded-md mb-2 mt-4"><h4 class="text-sm font-bold text-green-800 uppercase">B. Data Wali & Minat</h4></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Nama Orangtua/Wali</label>
+                                <input type="text" id="parentName" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">No. HP Wali</label>
+                                <input type="text" id="parentPhone" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Cita-cita</label>
+                                <input type="text" id="ambition" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Hobi</label>
+                                <input type="text" id="hobbies" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-100 p-3 rounded-md mb-2 mt-4"><h4 class="text-sm font-bold text-slate-800 uppercase">C. Akun Siswa (Otomatis)</h4></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-500">Email Sekolah</label>
+                                <input type="text" id="email" readonly class="mt-1 block w-full bg-slate-200 border border-slate-300 rounded-md shadow-sm py-2 px-3 text-slate-600 sm:text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-500">Password Awal</label>
+                                <input type="text" id="password" readonly class="mt-1 block w-full bg-slate-200 border border-slate-300 rounded-md shadow-sm py-2 px-3 text-slate-600 sm:text-sm font-mono">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveStudent()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Data
+                    </button>
+                    <button type="button" onclick="closeStudentModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closePaymentModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900">Validasi Pembayaran</h3>
+                        <button onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    
+                    <form id="paymentForm" class="space-y-4">
+                        <input type="hidden" id="payStudentId">
+                        <input type="hidden" id="payStudentName">
+                        
+                        <div class="bg-blue-50 p-3 rounded-md">
+                            <p class="text-sm text-blue-800">Siswa: <span id="payNameDisplay" class="font-bold">...</span></p>
+                            <p class="text-xs text-blue-600">Kelas: <span id="payClassDisplay">...</span></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Jenis Pembayaran</label>
+                                <select id="payType" onchange="toggleMonthInput()" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <option value="SPP">SPP Bulanan</option>
+                                    <option value="Ujian">Ujian Semester</option>
+                                    <option value="Gedung">Uang Gedung</option>
+                                    <option value="Daftar Ulang">Daftar Ulang</option>
+                                    <option value="Lainnya">Lainnya</option>
+                                </select>
+                            </div>
+
+                            <div id="monthContainer">
+                                <label class="block text-sm font-medium text-slate-700">Untuk Bulan</label>
+                                <select id="payMonth" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <option value="Juli">Juli</option><option value="Agustus">Agustus</option>
+                                    <option value="September">September</option><option value="Oktober">Oktober</option>
+                                    <option value="November">November</option><option value="Desember">Desember</option>
+                                    <option value="Januari">Januari</option><option value="Februari">Februari</option>
+                                    <option value="Maret">Maret</option><option value="April">April</option>
+                                    <option value="Mei">Mei</option><option value="Juni">Juni</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Nominal (Rp)</label>
+                                <input type="number" id="payAmount" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="150000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Status Pembayaran</label>
+                                <select id="payStatus" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <option value="Lunas">Lunas</option>
+                                    <option value="Cicilan">Cicilan / Sebagian</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-200 pt-3 mt-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Upload Bukti Pembayaran (Otomatis Kompres)</label>
+                            <input type="file" id="payProof" accept="image/*" onchange="handleImageUpload(event)" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer">
+                            
+                            <div id="proofPreviewContainer" class="hidden mt-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex gap-4 items-center">
+                                <img id="proofPreview" src="" class="w-20 h-20 object-cover rounded-md shadow-sm border border-slate-200">
+                                <div>
+                                    <p class="text-xs font-bold text-green-600"><i data-lucide="check-circle" class="inline w-3 h-3"></i> Berhasil dikompresi</p>
+                                    <p id="proofSize" class="text-xs text-slate-500 mt-1">Ukuran: -</p>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="submitPayment()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Pembayaran
+                    </button>
+                    <button type="button" onclick="closePaymentModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="teacherModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeTeacherModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900" id="teacherModalTitle">Tambah Data Guru</h3>
+                        <button onclick="closeTeacherModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    
+                    <form id="teacherForm" class="space-y-4">
+                        <input type="hidden" id="teacherId">
+
+                        <div class="flex items-center gap-4 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                            <img id="teacherPhotoPreview" src="https://api.dicebear.com/7.x/avataaars/svg?seed=teacher&backgroundColor=e9d5ff" class="w-16 h-16 rounded-full border-2 border-white shadow-sm object-cover">
+                            <div>
+                                <label class="block text-sm font-bold text-purple-800 mb-1">Foto Profil Pendidik (Opsional)</label>
+                                <input type="file" id="teacherPhoto" accept="image/*" onchange="handleTeacherPhoto(event)" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-white file:text-purple-700 hover:file:bg-purple-100 transition cursor-pointer">
+                            </div>
+                        </div>
+
+                        <div class="bg-purple-50 p-3 rounded-md mb-2"><h4 class="text-sm font-bold text-purple-800 uppercase">A. Identitas Pendidik</h4></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Nama Lengkap & Gelar</label>
+                                <input type="text" id="teacherName" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">NIP / NUPTK</label>
+                                <input type="number" id="teacherNip" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Mata Pelajaran (Pisahkan koma)</label>
+                                <input type="text" id="teacherSubject" placeholder="Contoh: Biologi, Kimia" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-purple-700">Tugas Wali Kelas (Opsional)</label>
+                                <select id="teacherHomeroom" class="mt-1 block w-full border border-purple-300 bg-white rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                                    <option value="">-- Bukan Wali Kelas --</option>
+                                    <option value="VII">Kelas VII</option>
+                                    <option value="VIII">Kelas VIII</option>
+                                    <option value="IX">Kelas IX</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="bg-purple-50 p-3 rounded-md mt-4 mb-2"><h4 class="text-sm font-bold text-purple-800 uppercase">B. Riwayat & Pencapaian (CV)</h4></div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Riwayat Pendidikan Terakhir</label>
+                                <textarea id="teacherEducation" rows="2" placeholder="Contoh: S1 Pendidikan Biologi - Universitas Negeri Malang (2015)" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Prestasi / Sertifikasi</label>
+                                <textarea id="teacherAchievements" rows="2" placeholder="Contoh: Sertifikasi Guru Profesional, Juara 1 OSN Guru..." class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="bg-purple-50 p-3 rounded-md mt-4 mb-2"><h4 class="text-sm font-bold text-purple-800 uppercase">C. Kredensial Akun</h4></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">No. WhatsApp</label>
+                                <input type="text" id="teacherPhone" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                            <div class="col-span-2 md:col-span-1"></div> <div>
+                                <label class="block text-sm font-bold text-slate-700">Email Kedinasan (Login)</label>
+                                <input type="email" id="teacherEmail" required class="mt-1 block w-full border border-slate-300 bg-slate-50 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700">Kata Sandi</label>
+                                <input type="text" id="teacherPassword" required class="mt-1 block w-full border border-slate-300 bg-slate-50 rounded-md shadow-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveTeacher()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Data
+                    </button>
+                    <button type="button" onclick="closeTeacherModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scheduleModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeScheduleModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900" id="scheduleModalTitle">Tambah Jadwal</h3>
+                        <button onclick="closeScheduleModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="scheduleForm" class="space-y-4">
+                        <input type="hidden" id="scheduleId">
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Hari</label>
+                                <select id="scheduleDay" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                                    <option value="Senin">Senin</option><option value="Selasa">Selasa</option>
+                                    <option value="Rabu">Rabu</option><option value="Kamis">Kamis</option>
+                                    <option value="Jumat">Jumat</option><option value="Sabtu">Sabtu</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Kelas</label>
+                                <select id="scheduleClass" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                                    <option value="VII">VII</option><option value="VIII">VIII</option><option value="IX">IX</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Waktu Mulai</label>
+                                <input type="time" id="scheduleStartTime" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Waktu Selesai</label>
+                                <input type="time" id="scheduleEndTime" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Mata Pelajaran</label>
+                            <input type="text" id="scheduleSubject" placeholder="Contoh: Matematika" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Guru Pengajar</label>
+                            <select id="scheduleTeacher" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                                </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Ruangan / Tempat</label>
+                            <input type="text" id="scheduleRoom" value="Ruang Kelas" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveSchedule()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Jadwal
+                    </button>
+                    <button type="button" onclick="closeScheduleModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="examModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeExamModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900" id="examModalTitle">Tambah Jadwal Ujian CBT</h3>
+                        <button onclick="closeExamModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="examForm" class="space-y-4">
+                        <input type="hidden" id="examId">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Jenis Ujian</label>
+                                <select id="examType" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                                    <option value="Ulangan Harian">Ulangan Harian</option>
+                                    <option value="Penilaian Tengah Semester">Penilaian Tengah Semester (PTS)</option>
+                                    <option value="Penilaian Akhir Semester">Penilaian Akhir Semester (PAS)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Mata Pelajaran</label>
+                                <input type="text" id="examSubject" required class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Kelas Target</label>
+                                <select id="examClass" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                                    <option value="VII">Kelas VII</option>
+                                    <option value="VIII">Kelas VIII</option>
+                                    <option value="IX">Kelas IX</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Tanggal Pelaksanaan</label>
+                                <input type="date" id="examDate" required class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Waktu Mulai</label>
+                                <input type="time" id="examTime" required class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Durasi (Menit)</label>
+                                <input type="number" id="examDuration" required min="10" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                            </div>
+                            
+                            <div class="md:col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-100 mt-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-bold text-blue-800">Guru Pengampu (Pembuat Soal)</label>
+                                        <select id="examTeacher" required class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm bg-white"></select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-orange-700">Guru Pengawas (Menjaga Ruang)</label>
+                                        <select id="examPengawas" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm bg-white"></select>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-bold text-slate-700">Nama Ruang Ujian</label>
+                                        <input type="text" id="examRoom" placeholder="Contoh: Lab Komputer 1 / Kelas IX-A" required class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 sm:text-sm">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveExam()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Jadwal Ujian
+                    </button>
+                    <button type="button" onclick="closeExamModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="announcementModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeAnnouncementModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900" id="announcementModalTitle">Buat Pengumuman Baru</h3>
+                        <button onclick="closeAnnouncementModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="announcementForm" class="space-y-4">
+                        <input type="hidden" id="announcementId">
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Judul Pengumuman</label>
+                            <input type="text" id="announcementTitle" placeholder="Contoh: Libur Nasional Idul Fitri" required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Kategori</label>
+                            <select id="announcementType" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="Info">Informasi Umum</option>
+                                <option value="Libur">Libur Sekolah</option>
+                                <option value="Ujian">Info Ujian / Akademik</option>
+                                <option value="Event">Event / Kegiatan Sekolah</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Isi Pengumuman</label>
+                            <textarea id="announcementContent" rows="5" placeholder="Tuliskan detail pengumuman di sini..." required class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveAnnouncement()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Sebarkan Pengumuman
+                    </button>
+                    <button type="button" onclick="closeAnnouncementModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Batal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="letterModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeLetterModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex justify-between items-center mb-5 border-b pb-2">
+                        <h3 class="text-lg leading-6 font-bold text-slate-900">Proses Pengajuan Surat</h3>
+                        <button onclick="closeLetterModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+                    </div>
+                    
+                    <div class="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-100">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div><span class="text-slate-500 block">Pengirim:</span><span class="font-bold text-slate-800" id="detailLetterSender">-</span></div>
+                            <div><span class="text-slate-500 block">Peran:</span><span class="font-medium text-slate-800" id="detailLetterRole">-</span></div>
+                            <div><span class="text-slate-500 block">Jenis Surat:</span><span class="font-medium text-slate-800" id="detailLetterType">-</span></div>
+                            <div><span class="text-slate-500 block">Tanggal Diajukan:</span><span class="font-medium text-slate-800" id="detailLetterDate">-</span></div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-200">
+                            <span class="text-slate-500 block text-sm mb-1">Keterangan / Alasan:</span>
+                            <p class="text-slate-800 bg-white p-3 rounded border border-slate-200 text-sm whitespace-pre-wrap" id="detailLetterDesc">-</p>
+                        </div>
+                    </div>
+
+                    <form id="letterForm" class="space-y-4">
+                        <input type="hidden" id="letterId">
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Tanggapan Admin (Opsional)</label>
+                            <textarea id="letterAdminNote" rows="2" placeholder="Contoh: Surat sudah dicetak dan bisa diambil di TU..." class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Ubah Status Pengajuan</label>
+                            <select id="letterStatus" class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-bold">
+                                <option value="Menunggu">🟠 Menunggu Diproses</option>
+                                <option value="Disetujui">🟢 Disetujui / Selesai</option>
+                                <option value="Ditolak">🔴 Ditolak</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="saveLetterStatus()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                        Simpan Keputusan
+                    </button>
+                    <button type="button" onclick="closeLetterModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="admin.js"></script>
+    <script>
+        // Memuat icon lucide untuk form login
+        lucide.createIcons();
+    </script>
+</body>
+</html>

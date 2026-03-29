@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnetic Field Explorer - Virtual Lab</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; user-select: none; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #a855f7;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-purple::-webkit-slider-thumb { border-color: #a855f7; background: #a855f7; box-shadow: 0 0 15px #a855f7; }
+        .slider-cyan::-webkit-slider-thumb { border-color: #06b6d4; background: #06b6d4; box-shadow: 0 0 15px #06b6d4; }
+
+        #simCanvas { background: #020617; width: 100%; height: auto; border-radius: 1rem; cursor: crosshair; }
+        .glass-hud { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .pulse-glow { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(168, 85, 247, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+        }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 tracking-tight">🧲 Magnetic Field Explorer</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Visualisasi Medan Vektor</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 rounded-lg text-sm font-bold text-purple-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-purple-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-purple-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="radar"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Pilih Sumber Medan:</b> Magnet Batang permanen, Kawat Lurus (dilihat dari atas), atau Kumparan (Solenoida).</li>
+                    <li><b>Gunakan Kompas Sensor:</b> Tarik (Drag) kompas bundar di atas kanvas. Perhatikan arah jarum merahnya dan nilai Kuat Medan (\(B\)) di sekitarnya.</li>
+                    <li><b>Amati Partikel:</b> Titik-titik cahaya mengalir dari kutub Utara (Merah) menuju kutub Selatan (Biru).</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-cyan-400 mb-2">⚡ Mode Arus Listrik</h4>
+                    <p>Jika kamu memilih Kawat atau Kumparan, medan magnet murni bergantung pada <b>Arus Listrik (\(I\))</b>. Ubah nilai arus menjadi negatif untuk membalik arah medan magnet (Kaidah Tangan Kanan)!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-purple-400 font-bold mb-2">Sifat Garis Medan Magnet</h3>
+                <p class="text-xs mb-2">Garis gaya magnet selalu keluar dari kutub <b>Utara (N)</b> dan masuk ke kutub <b>Selatan (S)</b>. Kepadatan garis menunjukkan kekuatan medan.</p>
+                <div class="font-mono text-purple-300 text-xs bg-slate-950 p-2 rounded text-center">Jarum Utara Kompas akan menunjuk searah dengan medan.</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-cyan-400 font-bold mb-2">Medan Magnet Arus Listrik (Kawat)</h3>
+                <p class="text-xs mb-2">Sesuai Hukum Biot-Savart, kawat lurus berarus menghasilkan medan magnet melingkar. Kuat medannya berbanding terbalik dengan jarak (\(r\)).</p>
+                <div class="font-mono text-cyan-300 text-xs bg-slate-950 p-2 rounded text-center">$$ B = \frac{\mu_0 I}{2 \pi r} $$</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden h-[450px]">
+                    <div class="absolute top-4 left-4 z-20 glass-hud px-4 py-3 rounded-xl border-l-4 border-l-purple-500 min-w-[200px] pointer-events-none">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><i data-lucide="crosshair" width="12"></i> Data Sensor Kompas</p>
+                        <div class="mt-2 space-y-1">
+                            <div class="flex justify-between"><span class="text-xs text-slate-300">Posisi (x, y)</span><span class="font-mono font-bold text-white" id="sensPos">0, 0 cm</span></div>
+                            <div class="flex justify-between"><span class="text-xs text-slate-300">Jarak (r)</span><span class="font-mono font-bold text-yellow-400" id="sensR">0.0 cm</span></div>
+                            <div class="flex justify-between border-t border-slate-700 pt-1 mt-1"><span class="text-xs text-slate-300">Kuat Medan (B)</span><span class="font-mono font-bold text-purple-400" id="sensB">0.00 mT</span></div>
+                        </div>
+                    </div>
+
+                    <div class="absolute top-4 right-4 z-20 glass-hud px-3 py-1.5 rounded-lg border border-slate-600 pointer-events-none">
+                        <p class="text-[10px] font-bold text-slate-300 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500"></span> Kutub Utara (N)</p>
+                        <p class="text-[10px] font-bold text-slate-300 flex items-center gap-2 mt-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Kutub Selatan (S)</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="800" height="450" class="w-full h-full block"></canvas>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-purple-500 p-5 shadow-lg flex-1">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-purple-400 flex items-center gap-2"><i data-lucide="sliders-horizontal"></i> Parameter Sumber Magnet</h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-400 uppercase">Jenis Sumber Medan</label>
+                            <select id="sourceSelect" onchange="changeSource()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2.5 text-sm outline-none focus:border-purple-500">
+                                <option value="magnet">🧲 Magnet Batang Permanen</option>
+                                <option value="wire">⚡ Kawat Lurus Berarus (Tampak Atas)</option>
+                                <option value="coil">🌀 Kumparan / Solenoida</option>
+                            </select>
+                            
+                            <div class="flex items-center gap-2 mt-4 bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                <label class="text-xs font-bold text-slate-300 flex-1">Tampilkan Vektor (Grid)</label>
+                                <input type="checkbox" id="toggleGrid" checked onchange="drawField()" class="w-4 h-4 accent-purple-500 cursor-pointer">
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 col-span-1 md:col-span-2" id="panelElec">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Arus Listrik (\(I\))</label>
+                                <span id="valI" class="text-sm text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">10.0 A</span>
+                            </div>
+                            <input type="range" id="inputI" min="-20" max="20" value="10" step="0.5" class="slider-cyan w-full" oninput="updateParams()">
+                            <p class="text-[10px] text-slate-500 mt-2 text-center">Geser ke nilai negatif untuk membalik arah arus (Kaidah Tangan Kanan)</p>
+                        </div>
+                        
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 col-span-1 md:col-span-2 hidden" id="panelMag">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Kekuatan Magnet Permanen</label>
+                                <span id="valMag" class="text-sm text-purple-400 font-mono font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">100%</span>
+                            </div>
+                            <input type="range" id="inputMag" min="10" max="200" value="100" step="10" class="slider-purple w-full" oninput="updateParams()">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="recordData()" class="col-span-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white font-black py-3 rounded-xl shadow-lg flex justify-center items-center gap-2 transition transform active:scale-95 text-sm">
+                        <i data-lucide="crosshair" width="18"></i> CATAT TITIK KOMPAS
+                    </button>
+                    <button onclick="resetData()" class="col-span-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl transition flex justify-center items-center gap-2 text-sm border border-slate-600">
+                        <i data-lucide="trash-2" width="16"></i> Hapus Data
+                    </button>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg flex flex-col">
+                    <h3 class="text-xs font-bold text-slate-300 mb-2 text-center border-b border-slate-700 pb-2">Kuat Medan vs Jarak (B-r)</h3>
+                    <div class="w-full flex-1 min-h-[180px]"><canvas id="chartBr"></canvas></div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Data Jarak</h3>
+                        <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-2 py-1 rounded text-[10px] font-bold border border-red-500/30 transition">
+                            PDF
+                        </button>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[160px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-700">No.</th>
+                                    <th class="p-2 border-b border-slate-700 text-yellow-400">Jarak r (cm)</th>
+                                    <th class="p-2 border-b border-slate-700 text-purple-400">Medan B (mT)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="3" class="p-4 text-center text-slate-500 font-sans">Geser kompas, klik Catat Titik.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // Physics & Sensor State
+        let mode = 'magnet'; // magnet, wire, coil
+        let I_val = 10.0;
+        let Mag_val = 1.0; 
+        
+        // Center of the world
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        
+        // Sensor Compass (Draggable)
+        let comp = { x: cx + 150, y: cy - 100, r: 20, isDragging: false };
+        let currentB = { x: 0, y: 0, mag: 0 }; // Vektor medan di posisi kompas
+        
+        // Particles for Flow Animation
+        let particles = [];
+        const numParticles = 300;
+
+        // Data Storage
+        let dataHistory = [];
+        let recordCount = 0;
+        let chartBr;
+
+        // --- CHARTS INITIALIZATION ---
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            chartBr = new Chart(document.getElementById('chartBr').getContext('2d'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'B (mT)', borderColor: '#a855f7', backgroundColor: '#c084fc', data: [], pointRadius: 5, showLine: false }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { 
+                    x: { title: {display: true, text: 'Jarak r (cm)'}, beginAtZero: true },
+                    y: { title: {display: true, text: 'B (mT)'}, beginAtZero: true }
+                }}
+            });
+        }
+
+        // --- VECTOR FIELD MATH ENGINE ---
+        // Fungsi untuk mendapatkan vektor B di titik (x, y) berdasarkan sumber
+        function getBField(px, py) {
+            let Bx = 0; let By = 0;
+            const k = 5000; // Konstanta visual
+
+            if (mode === 'magnet') {
+                // Dipol Magnet (Dua muatan magnetik)
+                let d = 50; // Jarak kutub dari pusat
+                let m = Mag_val * k; // Kekuatan kutub
+                
+                // Kutub Utara (di Kanan, cx + d)
+                let dxN = px - (cx + d); let dyN = py - cy;
+                let rN2 = dxN*dxN + dyN*dyN;
+                let rN = Math.sqrt(rN2) || 1;
+                // Keluar dari Utara
+                Bx += (m * dxN) / (rN2 * rN);
+                By += (m * dyN) / (rN2 * rN);
+
+                // Kutub Selatan (di Kiri, cx - d)
+                let dxS = px - (cx - d); let dyS = py - cy;
+                let rS2 = dxS*dxS + dyS*dyS;
+                let rS = Math.sqrt(rS2) || 1;
+                // Masuk ke Selatan
+                Bx -= (m * dxS) / (rS2 * rS);
+                By -= (m * dyS) / (rS2 * rS);
+            } 
+            else if (mode === 'wire') {
+                // Kawat lurus berarus (Biot-Savart 2D)
+                // Arah B melingkari kawat. Vektor = (-dy, dx)
+                let dx = px - cx; let dy = py - cy;
+                let r2 = dx*dx + dy*dy;
+                let r = Math.sqrt(r2);
+                if (r > 5) { // Cegah tak terhingga di pusat
+                    let mag = (k * I_val * 0.2) / r;
+                    Bx = -mag * (dy / r);
+                    By = mag * (dx / r);
+                }
+            }
+            else if (mode === 'coil') {
+                // Kumparan mirip dengan Dipol tapi lebih tersebar
+                let m = I_val * k * 0.5;
+                // Aproksimasi beberapa loop
+                for(let i = -40; i <= 40; i += 20) {
+                    let dxN = px - (cx + i + 10); let dyN = py - cy;
+                    let rN2 = dxN*dxN + dyN*dyN; let rN = Math.sqrt(rN2) || 1;
+                    Bx += (m * dxN) / (rN2 * rN); By += (m * dyN) / (rN2 * rN);
+
+                    let dxS = px - (cx + i - 10); let dyS = py - cy;
+                    let rS2 = dxS*dxS + dyS*dyS; let rS = Math.sqrt(rS2) || 1;
+                    Bx -= (m * dxS) / (rS2 * rS); By -= (m * dyS) / (rS2 * rS);
+                }
+            }
+
+            return { x: Bx, y: By, mag: Math.sqrt(Bx*Bx + By*By) };
+        }
+
+        // --- CONTROLS ---
+        function changeSource() {
+            mode = document.getElementById('sourceSelect').value;
+            
+            const pElec = document.getElementById('panelElec');
+            const pMag = document.getElementById('panelMag');
+            
+            if(mode === 'magnet') {
+                pElec.classList.add('hidden'); pMag.classList.remove('hidden');
+            } else {
+                pElec.classList.remove('hidden'); pMag.classList.add('hidden');
+            }
+            
+            initParticles();
+            updateParams();
+        }
+
+        function updateParams() {
+            if(mode === 'magnet') {
+                Mag_val = parseFloat(document.getElementById('inputMag').value) / 100;
+                document.getElementById('valMag').innerText = (Mag_val * 100).toFixed(0) + "%";
+            } else {
+                I_val = parseFloat(document.getElementById('inputI').value);
+                document.getElementById('valI').innerText = I_val.toFixed(1) + " A";
+            }
+            // Trigger recalculation on sensor
+            updateSensor();
+        }
+
+        function updateSensor() {
+            currentB = getBField(comp.x, comp.y);
+            
+            // Konversi jarak piksel ke cm (1 cm = 10 px)
+            let distPx = Math.sqrt(Math.pow(comp.x - cx, 2) + Math.pow(comp.y - cy, 2));
+            let distCm = distPx / 10;
+            
+            // Konversi unit B visual ke nilai terukur (mT)
+            let bVal = currentB.mag * 0.1;
+
+            document.getElementById('sensPos').innerText = `${((comp.x - cx)/10).toFixed(1)}, ${((cy - comp.y)/10).toFixed(1)} cm`;
+            document.getElementById('sensR').innerText = distCm.toFixed(1) + " cm";
+            document.getElementById('sensB').innerText = bVal.toFixed(2) + " mT";
+        }
+
+        // --- RENDER VISUAL (CANVAS) ---
+        function initParticles() {
+            particles = [];
+            for(let i=0; i<numParticles; i++) {
+                particles.push(spawnParticle());
+            }
+        }
+
+        function spawnParticle() {
+            return {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                age: 0,
+                maxAge: 50 + Math.random() * 100
+            };
+        }
+
+        function drawField() {
+            // Trailing effect for particles
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.2)'; // Dark blue-black semi transparent
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Gambar Grid Vektor (Jika diaktifkan)
+            const showGrid = document.getElementById('toggleGrid').checked;
+            if(showGrid) {
+                ctx.lineWidth = 1;
+                for(let x=20; x<canvas.width; x+=40) {
+                    for(let y=20; y<canvas.height; y+=40) {
+                        let B = getBField(x, y);
+                        if(B.mag < 0.1) continue;
+                        
+                        let angle = Math.atan2(B.y, B.x);
+                        // Panjang panah grid bergantung pada B.mag, dilimitasi
+                        let len = Math.min(15, B.mag * 2 + 5); 
+                        
+                        // Warna grid memudar jika B lemah
+                        let alpha = Math.min(0.5, B.mag * 0.1);
+                        ctx.strokeStyle = `rgba(148, 163, 184, ${alpha})`; // Slate
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x - Math.cos(angle)*(len/2), y - Math.sin(angle)*(len/2));
+                        ctx.lineTo(x + Math.cos(angle)*(len/2), y + Math.sin(angle)*(len/2));
+                        // Arrow head
+                        ctx.lineTo(x + Math.cos(angle)*(len/2) - Math.cos(angle-0.5)*3, y + Math.sin(angle)*(len/2) - Math.sin(angle-0.5)*3);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // 2. Gambar Animasi Partikel (Garis Medan Bergerak)
+            // Cek apakah kekuatan nol (Arus 0)
+            let isZero = (mode !== 'magnet' && I_val === 0);
+
+            if(!isZero) {
+                ctx.lineWidth = 2;
+                for(let i=0; i<particles.length; i++) {
+                    let p = particles[i];
+                    let B = getBField(p.x, p.y);
+                    
+                    // Kecepatan partikel bergantung pada kuat medan
+                    let speed = Math.min(8, B.mag * 0.5);
+                    if(speed < 0.2) speed = 0.2; // Min speed
+
+                    let angle = Math.atan2(B.y, B.x);
+                    
+                    let nx = p.x + Math.cos(angle) * speed;
+                    let ny = p.y + Math.sin(angle) * speed;
+
+                    // Warna partikel menyala neon (Cyan ke Purple)
+                    let glow = Math.min(1, B.mag * 0.05);
+                    ctx.strokeStyle = `rgba(6, 182, 212, ${glow})`; // Cyan
+
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(nx, ny);
+                    ctx.stroke();
+
+                    p.x = nx; p.y = ny; p.age++;
+
+                    if(p.age > p.maxAge || p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                        particles[i] = spawnParticle();
+                        // Lebih sering spawn di dekat pusat/kutub jika mati
+                        if(Math.random() > 0.5) {
+                            particles[i].x = cx + (Math.random()*100 - 50);
+                            particles[i].y = cy + (Math.random()*100 - 50);
+                        }
+                    }
+                }
+            }
+
+            // 3. Gambar Objek Utama (Sumber Medan)
+            ctx.shadowBlur = 15;
+            if (mode === 'magnet') {
+                ctx.shadowColor = 'rgba(255,255,255,0.2)';
+                // Magnet Batang
+                ctx.fillStyle = '#ef4444'; // Red (North) - Kanan
+                ctx.fillRect(cx, cy - 20, 80, 40);
+                ctx.fillStyle = '#3b82f6'; // Blue (South) - Kiri
+                ctx.fillRect(cx - 80, cy - 20, 80, 40);
+                
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('S', cx - 40, cy); ctx.fillText('N', cx + 40, cy);
+            } 
+            else if (mode === 'wire') {
+                // Kawat lurus (titik tembus layar)
+                let color = I_val > 0 ? '#ef4444' : (I_val < 0 ? '#3b82f6' : '#64748b');
+                ctx.shadowColor = color;
+                ctx.fillStyle = '#cbd5e1';
+                ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI*2); ctx.fill();
+                
+                ctx.fillStyle = '#0f172a';
+                if(I_val > 0) {
+                    // Arus keluar layar (Titik)
+                    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill();
+                } else if (I_val < 0) {
+                    // Arus masuk layar (Silang X)
+                    ctx.lineWidth = 3; ctx.strokeStyle = '#0f172a'; ctx.beginPath();
+                    ctx.moveTo(cx-6, cy-6); ctx.lineTo(cx+6, cy+6);
+                    ctx.moveTo(cx+6, cy-6); ctx.lineTo(cx-6, cy+6); ctx.stroke();
+                }
+            }
+            else if (mode === 'coil') {
+                // Kumparan / Solenoida
+                let color = I_val !== 0 ? '#eab308' : '#64748b'; // Yellow if active
+                ctx.shadowColor = color; ctx.strokeStyle = color; ctx.lineWidth = 4;
+                
+                // Gambar lilitan (spiral effect 2D)
+                for(let i = -50; i <= 50; i += 10) {
+                    ctx.beginPath();
+                    ctx.ellipse(cx + i, cy, 8, 25, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            ctx.shadowBlur = 0; // Reset
+
+            // 4. Gambar Kompas Sensor (Draggable)
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.strokeStyle = comp.isDragging ? '#0ea5e9' : '#94a3b8';
+            ctx.lineWidth = 3;
+            
+            ctx.beginPath(); ctx.arc(comp.x, comp.y, comp.r, 0, Math.PI*2); 
+            ctx.fill(); ctx.stroke();
+            
+            // Jarum Kompas (Mengikuti arah vektor B)
+            if(!isZero) {
+                let cAngle = Math.atan2(currentB.y, currentB.x);
+                let needleLen = comp.r - 2;
+                
+                // Utara (Merah) menunjuk ke arah B
+                ctx.beginPath(); ctx.fillStyle = '#ef4444';
+                ctx.moveTo(comp.x - Math.cos(cAngle+Math.PI/2)*4, comp.y - Math.sin(cAngle+Math.PI/2)*4);
+                ctx.lineTo(comp.x + Math.cos(cAngle-Math.PI/2)*4, comp.y + Math.sin(cAngle-Math.PI/2)*4);
+                ctx.lineTo(comp.x + Math.cos(cAngle)*needleLen, comp.y + Math.sin(cAngle)*needleLen);
+                ctx.fill();
+
+                // Selatan (Putih) berlawanan
+                ctx.beginPath(); ctx.fillStyle = '#ffffff';
+                ctx.moveTo(comp.x - Math.cos(cAngle+Math.PI/2)*4, comp.y - Math.sin(cAngle+Math.PI/2)*4);
+                ctx.lineTo(comp.x + Math.cos(cAngle-Math.PI/2)*4, comp.y + Math.sin(cAngle-Math.PI/2)*4);
+                ctx.lineTo(comp.x - Math.cos(cAngle)*needleLen, comp.y - Math.sin(cAngle)*needleLen);
+                ctx.fill();
+            }
+
+            animFrame = requestAnimationFrame(drawField);
+        }
+
+        // --- MOUSE INTERACTION (DRAG COMPASS) ---
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // Penyesuaian skala internal canvas vs CSS size
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            let dist = Math.sqrt(Math.pow(pos.x - comp.x, 2) + Math.pow(pos.y - comp.y, 2));
+            if (dist < comp.r + 10) { // Toleransi klik
+                comp.isDragging = true;
+                canvas.style.cursor = 'grabbing';
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (comp.isDragging) {
+                const pos = getMousePos(e);
+                // Batasi agar tidak keluar layar
+                comp.x = Math.max(comp.r, Math.min(canvas.width - comp.r, pos.x));
+                comp.y = Math.max(comp.r, Math.min(canvas.height - comp.r, pos.y));
+                updateSensor();
+            } else {
+                // Hover effect cursor
+                const pos = getMousePos(e);
+                let dist = Math.sqrt(Math.pow(pos.x - comp.x, 2) + Math.pow(pos.y - comp.y, 2));
+                canvas.style.cursor = dist < comp.r + 10 ? 'grab' : 'crosshair';
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => { comp.isDragging = false; canvas.style.cursor = 'crosshair'; });
+        canvas.addEventListener('mouseleave', () => { comp.isDragging = false; });
+
+        // --- DATA LOGGING ---
+        function recordData() {
+            recordCount++;
+            
+            let distPx = Math.sqrt(Math.pow(comp.x - cx, 2) + Math.pow(comp.y - cy, 2));
+            let distCm = distPx / 10;
+            let bVal = currentB.mag * 0.1;
+
+            // Push to Chart
+            chartBr.data.datasets[0].data.push({ x: distCm, y: bVal });
+            chartBr.update();
+
+            // Push to Table
+            if(recordCount === 1) document.getElementById('tableBody').innerHTML = '';
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${recordCount}</td>
+                <td class="p-2 border-b border-slate-700/50 text-yellow-400 font-bold">${distCm.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-purple-400 font-bold">${bVal.toFixed(2)}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([recordCount, distCm.toFixed(1), bVal.toFixed(2)]);
+            
+            // Effect
+            document.getElementById('sensB').classList.add('pulse-glow');
+            setTimeout(() => document.getElementById('sensB').classList.remove('pulse-glow'), 500);
+        }
+
+        function resetData() {
+            recordCount = 0;
+            dataHistory = [];
+            chartBr.data.datasets[0].data = []; chartBr.update();
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-500 font-sans">Geser kompas, klik Catat Titik.</td></tr>';
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Catat titik kompas terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Medan Magnet", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Sumber Medan: ${document.getElementById('sourceSelect').options[document.getElementById('sourceSelect').selectedIndex].text}`, 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['No.', 'Jarak r (cm)', 'Kuat Medan B (mT)']], body: dataHistory, theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Medan_Magnet.pdf");
+        }
+
+        // Init App
+        initCharts();
+        initParticles();
+        changeSource();
+        updateSensor();
+        drawField(); 
+    </script>
+</body>
+</html>

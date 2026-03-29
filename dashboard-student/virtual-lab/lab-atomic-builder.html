@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomic Structure Lab - Virtual Lab Kimia</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; user-select: none; }
+        
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; border: 1px solid #334155; }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .btn-particle { transition: all 0.2s; }
+        .btn-particle:active { transform: scale(0.9); }
+        
+        /* Isotope Notation Grid */
+        .isotope-grid { display: grid; grid-template-columns: auto auto auto; grid-template-rows: auto auto; align-items: center; gap: 2px; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-500 tracking-tight">⚛️ Atomic Structure Lab</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Builder Atom • Proton, Neutron, Elektron</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Atom</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto text-sm text-slate-300">
+            <h3 class="text-indigo-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="flask-conical"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">🔴 1. Tambah Proton (Z)</h4>
+                    <p class="text-xs">Proton menentukan <b>Identitas Unsur</b>. Tambahkan proton untuk mengubah unsur dari Hidrogen ke Helium, Litium, dan seterusnya (Maksimal Z=20, Kalsium).</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">⚪ 2. Tambah Neutron</h4>
+                    <p class="text-xs">Neutron adalah "lem" inti atom. Menambah neutron akan menambah <b>Nomor Massa (A)</b> dan menciptakan <b>Isotop</b>. Jika neutron terlalu sedikit/banyak, atom menjadi tidak stabil (radioaktif).</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">🔵 3. Tambah Elektron</h4>
+                    <p class="text-xs">Elektron menempati kulit (K, L, M, N). Jika jumlah elektron tidak sama dengan proton, atom akan memiliki <b>Muatan (Ion)</b>. Kation (+) jika elektron kurang, Anion (-) jika berlebih.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-purple-400 font-bold mb-2 text-center">Nomor Massa (A)</h3>
+                <p class="text-xs mb-2 text-center">Total jumlah partikel di dalam inti atom (Nukleus).</p>
+                <div class="font-mono text-purple-300 text-xs bg-slate-950 p-2 rounded text-center border border-purple-900">Massa = Proton + Neutron</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-blue-400 font-bold mb-2 text-center">Muatan Net (Charge)</h3>
+                <p class="text-xs mb-2 text-center">Selisih antara partikel positif (Proton) dan partikel negatif (Elektron).</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded text-center border border-blue-900">Muatan = Proton - Elektron</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                <h3 class="text-emerald-400 font-bold mb-2 text-center">Konfigurasi Elektron (Bohr)</h3>
+                <p class="text-xs mb-2 text-center">Distribusi elektron pada kulit-kulit atom (K, L, M, N) dengan kapasitas maksimal.</p>
+                <div class="font-mono text-emerald-300 text-[10px] bg-slate-950 p-2 rounded text-center border border-emerald-900">K=2, L=8, M=8, N=2 (Untuk 20 unsur pertama)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1400px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-8 flex flex-col gap-4">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[450px] md:h-[550px]">
+                    
+                    <div class="absolute top-4 left-4 z-20 glass-panel p-4 rounded-2xl border-l-4 border-l-purple-500 shadow-lg pointer-events-none">
+                        <div class="flex items-center gap-4">
+                            <div class="isotope-grid text-white font-mono">
+                                <div class="text-right text-sm text-purple-300" style="grid-area: 1 / 1;" id="dispMass">1</div>
+                                <div class="text-right text-sm text-red-400" style="grid-area: 2 / 1;" id="dispZ">1</div>
+                                <div class="text-5xl font-black px-1" style="grid-area: 1 / 2 / span 2 / auto;" id="dispSymbol">H</div>
+                                <div class="text-left text-sm text-blue-400 font-bold" style="grid-area: 1 / 3;" id="dispCharge"> </div>
+                            </div>
+                            <div class="border-l border-slate-600 pl-4">
+                                <p class="text-2xl font-black text-white tracking-widest uppercase" id="dispName">Hidrogen</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase" id="dispType">Non-Logam</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="absolute top-4 right-4 z-20 glass-panel px-4 py-3 rounded-xl border border-slate-700 pointer-events-none text-right">
+                        <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Konfigurasi Elektron</p>
+                        <div class="flex gap-2 justify-end" id="dispConfig">
+                            <div class="w-6 h-6 rounded bg-slate-800 border border-blue-500/50 text-blue-300 flex items-center justify-center font-mono font-bold text-xs">1</div>
+                        </div>
+                    </div>
+
+                    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-3 pointer-events-none w-[90%] max-w-[500px]">
+                        <div class="flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border" id="statusStability">
+                            <p class="text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-70">Stabilitas Inti</p>
+                            <p class="font-bold text-sm tracking-wider" id="txtStability">STABIL</p>
+                        </div>
+                        <div class="flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border" id="statusIon">
+                            <p class="text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-70">Status Muatan</p>
+                            <p class="font-bold text-sm tracking-wider" id="txtIon">ATOM NETRAL</p>
+                        </div>
+                    </div>
+
+                    <canvas id="simCanvas" width="800" height="550" class="w-full h-full block"></canvas>
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-indigo-500 p-5 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-3">
+                        <h3 class="font-bold text-indigo-400 flex items-center gap-2 uppercase tracking-widest text-sm"><i data-lucide="blocks" width="18"></i> Particle Builder</h3>
+                        <button onclick="resetAtom()" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded flex items-center gap-1 transition"><i data-lucide="rotate-ccw" width="12"></i> Reset (H)</button>
+                    </div>
+
+                    <div class="space-y-6 flex-1">
+                        
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-red-500/30 flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm font-bold text-red-400 flex items-center gap-2">🔴 Proton (p⁺)</p>
+                                    <p class="text-[9px] text-slate-400">Menentukan Identitas Unsur</p>
+                                </div>
+                                <span class="text-2xl font-mono font-black text-white bg-slate-800 px-4 py-1 rounded-lg border border-red-500/50" id="countP">1</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="changeParticle('p', -1)" class="btn-particle flex-1 bg-slate-700 hover:bg-red-900/50 border border-slate-600 hover:border-red-500 text-white font-bold py-2 rounded-lg text-xl">-</button>
+                                <button onclick="changeParticle('p', 1)" class="btn-particle flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-lg text-xl shadow-[0_0_10px_rgba(239,68,68,0.4)]">+</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-500/50 flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-300 flex items-center gap-2">⚪ Neutron (n⁰)</p>
+                                    <p class="text-[9px] text-slate-400">Menentukan Massa & Isotop</p>
+                                </div>
+                                <span class="text-2xl font-mono font-black text-white bg-slate-800 px-4 py-1 rounded-lg border border-slate-500/50" id="countN">0</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="changeParticle('n', -1)" class="btn-particle flex-1 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-400 text-white font-bold py-2 rounded-lg text-xl">-</button>
+                                <button onclick="changeParticle('n', 1)" class="btn-particle flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 rounded-lg text-xl shadow-[0_0_10px_rgba(100,116,139,0.4)]">+</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-blue-500/30 flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm font-bold text-blue-400 flex items-center gap-2">🔵 Elektron (e⁻)</p>
+                                    <p class="text-[9px] text-slate-400">Menentukan Muatan (Ion)</p>
+                                </div>
+                                <span class="text-2xl font-mono font-black text-white bg-slate-800 px-4 py-1 rounded-lg border border-blue-500/50" id="countE">1</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="changeParticle('e', -1)" class="btn-particle flex-1 bg-slate-700 hover:bg-blue-900/50 border border-slate-600 hover:border-blue-500 text-white font-bold py-2 rounded-lg text-xl">-</button>
+                                <button onclick="changeParticle('e', 1)" class="btn-particle flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-xl shadow-[0_0_10px_rgba(59,130,246,0.4)]">+</button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <button onclick="neutralizeAtom()" class="w-full bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 font-bold py-2.5 rounded-xl transition border border-indigo-500/30 text-sm flex justify-center items-center gap-2">
+                            <i data-lucide="zap-off" width="16"></i> Seimbangkan Atom (Netral)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2 text-sm"><i data-lucide="database" width="16"></i> Koleksi Data</h3>
+                        <div class="flex gap-2">
+                            <button onclick="recordData()" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1 rounded-lg text-[10px] font-bold border border-blue-500/30 transition">CATAT</button>
+                            <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1 rounded-lg text-[10px] font-bold border border-red-500/30 transition">PDF</button>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[140px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-[10px] md:text-xs">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="p-2 border-b border-slate-700">Unsur</th>
+                                    <th class="p-2 border-b border-slate-700 text-center">Z</th>
+                                    <th class="p-2 border-b border-slate-700 text-center">A</th>
+                                    <th class="p-2 border-b border-slate-700 text-center">Muatan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="4" class="p-2 text-center text-slate-500 font-sans">Belum ada data.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- ATOMIC DATA ---
+        // Periodic Table Data (Z = 1 to 20)
+        const PERIODIC_TABLE = [
+            { z: 0, sym: "?", name: "Kosong", type: "Unknown" },
+            { z: 1, sym: "H", name: "Hidrogen", type: "Non-Logam", defN: 0 },
+            { z: 2, sym: "He", name: "Helium", type: "Gas Mulia", defN: 2 },
+            { z: 3, sym: "Li", name: "Litium", type: "Logam Alkali", defN: 4 },
+            { z: 4, sym: "Be", name: "Berilium", type: "Logam Alkali Tanah", defN: 5 },
+            { z: 5, sym: "B", name: "Boron", type: "Metaloid", defN: 6 },
+            { z: 6, sym: "C", name: "Karbon", type: "Non-Logam", defN: 6 },
+            { z: 7, sym: "N", name: "Nitrogen", type: "Non-Logam", defN: 7 },
+            { z: 8, sym: "O", name: "Oksigen", type: "Non-Logam", defN: 8 },
+            { z: 9, sym: "F", name: "Fluorin", type: "Halogen", defN: 10 },
+            { z: 10, sym: "Ne", name: "Neon", type: "Gas Mulia", defN: 10 },
+            { z: 11, sym: "Na", name: "Natrium", type: "Logam Alkali", defN: 12 },
+            { z: 12, sym: "Mg", name: "Magnesium", type: "Logam Alkali Tanah", defN: 12 },
+            { z: 13, sym: "Al", name: "Aluminium", type: "Logam Pasca Transisi", defN: 14 },
+            { z: 14, sym: "Si", name: "Silikon", type: "Metaloid", defN: 14 },
+            { z: 15, sym: "P", name: "Fosforus", type: "Non-Logam", defN: 16 },
+            { z: 16, sym: "S", name: "Belerang", type: "Non-Logam", defN: 16 },
+            { z: 17, sym: "Cl", name: "Klorin", type: "Halogen", defN: 18 },
+            { z: 18, sym: "Ar", name: "Argon", type: "Gas Mulia", defN: 22 },
+            { z: 19, sym: "K", name: "Kalium", type: "Logam Alkali", defN: 20 },
+            { z: 20, sym: "Ca", name: "Kalsium", type: "Logam Alkali Tanah", defN: 20 }
+        ];
+
+        // Current State
+        let P = 1;
+        let N = 0;
+        let E = 1;
+        
+        let elemData = PERIODIC_TABLE[1];
+        let charge = 0;
+        let mass = 1;
+        let isStable = true;
+        let eConfig = [];
+
+        // Animation Time
+        let timeSim = 0;
+
+        // Nucleus Pre-calculated positions (to avoid jittering every frame)
+        let nucleusParticles = [];
+
+        // Data Storage
+        let dataHistory = [];
+        
+        // --- LOGIC FUNCTIONS ---
+        function changeParticle(type, amount) {
+            if(type === 'p') {
+                P += amount;
+                if(P < 1) P = 1; // Min Hydrogen
+                if(P > 20) P = 20; // Max Calcium (limit for this simple lab)
+                
+                // Auto adjust N and E to keep it neutral/stable if user hasn't messed with them much
+                // Or let them be to teach ions/isotopes. We let them be, but if P drops below E, it becomes an anion.
+                elemData = PERIODIC_TABLE[P];
+            } else if (type === 'n') {
+                N += amount;
+                if(N < 0) N = 0;
+                if(N > 40) N = 40; // Hard limit
+            } else if (type === 'e') {
+                E += amount;
+                if(E < 0) E = 0;
+                if(E > 30) E = 30; // Hard limit
+            }
+            
+            recalculateAtom();
+        }
+
+        function neutralizeAtom() {
+            E = P;
+            N = elemData.defN;
+            recalculateAtom();
+        }
+
+        function resetAtom() {
+            P = 1; N = 0; E = 1;
+            elemData = PERIODIC_TABLE[1];
+            recalculateAtom();
+            
+            dataHistory = [];
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="4" class="p-2 text-center text-slate-500 font-sans">Belum ada data.</td></tr>';
+        }
+
+        function calculateStability() {
+            // Simplified stability rules for first 20 elements
+            if (P === 1) return (N === 0 || N === 1 || N === 2); // H-1, H-2 stable, H-3 radioactive (but let's say valid)
+            
+            let nRatio = N / P;
+            if (P <= 20) {
+                // Stabil jika rasio N/P mendekati 1 (dari 1.0 s.d 1.25 toleransi ringan)
+                if (P === 18 && N === 22) return true; // Argon-40 exception
+                return (nRatio >= 0.9 && nRatio <= 1.3);
+            }
+            return false;
+        }
+
+        function recalculateAtom() {
+            // Update values
+            mass = P + N;
+            charge = P - E;
+            isStable = calculateStability();
+
+            // Calculate Electron Configuration (Bohr 2-8-8-18)
+            eConfig = [];
+            let eLeft = E;
+            let shellsCapacity = [2, 8, 8, 18];
+            for(let i=0; i<shellsCapacity.length; i++) {
+                if(eLeft <= 0) break;
+                let inShell = Math.min(eLeft, shellsCapacity[i]);
+                eConfig.push(inShell);
+                eLeft -= inShell;
+            }
+
+            // Update UI Numbers
+            document.getElementById('countP').innerText = P;
+            document.getElementById('countN').innerText = N;
+            document.getElementById('countE').innerText = E;
+
+            // Update HUD Isotope
+            document.getElementById('dispMass').innerText = mass;
+            document.getElementById('dispZ').innerText = P;
+            document.getElementById('dispSymbol').innerText = elemData.sym;
+            
+            let chargeStr = "";
+            if (charge > 0) chargeStr = charge === 1 ? "+" : charge + "+";
+            else if (charge < 0) chargeStr = charge === -1 ? "-" : Math.abs(charge) + "-";
+            document.getElementById('dispCharge').innerText = chargeStr;
+            document.getElementById('dispCharge').className = charge > 0 ? "text-left text-sm text-red-400 font-bold" : (charge < 0 ? "text-left text-sm text-blue-400 font-bold" : "text-left text-sm");
+
+            document.getElementById('dispName').innerText = elemData.name;
+            document.getElementById('dispType').innerText = elemData.type;
+
+            // Update Config Blocks
+            const configContainer = document.getElementById('dispConfig');
+            if(E === 0) {
+                configContainer.innerHTML = `<span class="text-[10px] text-slate-500 italic">Kosong</span>`;
+            } else {
+                let shellLabels = ['K', 'L', 'M', 'N'];
+                configContainer.innerHTML = eConfig.map((num, i) => `
+                    <div class="flex flex-col items-center">
+                        <div class="w-6 h-6 rounded bg-slate-800 border border-blue-500/50 text-blue-300 flex items-center justify-center font-mono font-bold text-xs">${num}</div>
+                        <span class="text-[8px] text-slate-500 mt-1">${shellLabels[i]}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Update Stability Status
+            const boxStab = document.getElementById('statusStability');
+            const txtStab = document.getElementById('txtStability');
+            if(isStable) {
+                boxStab.className = "flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border border-emerald-500/30 bg-emerald-900/10";
+                txtStab.innerText = "STABIL";
+                txtStab.className = "font-bold text-sm tracking-wider text-emerald-400";
+            } else {
+                boxStab.className = "flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border border-red-500/50 bg-red-900/20";
+                txtStab.innerText = "TIDAK STABIL (RADIOAKTIF)";
+                txtStab.className = "font-bold text-sm tracking-wider text-red-400 animate-pulse";
+            }
+
+            // Update Ion Status
+            const boxIon = document.getElementById('statusIon');
+            const txtIon = document.getElementById('txtIon');
+            if(charge === 0) {
+                boxIon.className = "flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border border-slate-600";
+                txtIon.innerText = "ATOM NETRAL";
+                txtIon.className = "font-bold text-sm tracking-wider text-slate-300";
+            } else if (charge > 0) {
+                boxIon.className = "flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border border-red-500/30 bg-red-900/10";
+                txtIon.innerText = "KATION (+)";
+                txtIon.className = "font-bold text-sm tracking-wider text-red-400";
+            } else {
+                boxIon.className = "flex-1 glass-panel py-2 px-3 rounded-xl text-center shadow-lg transition-colors duration-300 border border-blue-500/30 bg-blue-900/10";
+                txtIon.innerText = "ANION (-)";
+                txtIon.className = "font-bold text-sm tracking-wider text-blue-400";
+            }
+
+            generateNucleus();
+        }
+
+        // --- RENDER VISUAL (CANVAS 2D) ---
+        function generateNucleus() {
+            // Kita pre-calculate posisi agar proton dan neutron nempel di tengah jadi cluster bulat
+            nucleusParticles = [];
+            let total = P + N;
+            
+            // Sunflower seed arrangement (Fermat's spiral) for tight packing
+            const c = 6; // Scaling factor for distance
+            
+            // Masukkan Proton
+            for(let i=0; i<P; i++) nucleusParticles.push({ type: 'p', id: i });
+            // Masukkan Neutron
+            for(let i=0; i<N; i++) nucleusParticles.push({ type: 'n', id: i });
+
+            // Acak urutan agar campur aduk merata (Fisher-Yates shuffle)
+            for (let i = total - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [nucleusParticles[i], nucleusParticles[j]] = [nucleusParticles[j], nucleusParticles[i]];
+            }
+
+            // Assign posisi spiral
+            const phi = 137.5 * (Math.PI / 180); // Golden angle
+            for(let i=0; i<total; i++) {
+                let r = c * Math.sqrt(i);
+                let theta = i * phi;
+                nucleusParticles[i].x = r * Math.cos(theta);
+                nucleusParticles[i].y = r * Math.sin(theta);
+            }
+        }
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            timeSim += 0.02;
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2 + 20;
+
+            // 1. Draw Orbits (Shells)
+            let shellRadii = [60, 110, 160, 210]; // Radius K, L, M, N
+            
+            ctx.lineWidth = 1;
+            for(let s = 0; s < eConfig.length; s++) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // Faint Cyan
+                ctx.arc(cx, cy, shellRadii[s], 0, Math.PI*2);
+                ctx.stroke();
+            }
+
+            // 2. Draw Electrons on Orbits
+            let eGlow = (charge !== 0) ? '#60a5fa' : '#38bdf8'; // Beda warna jika ion
+            
+            for(let s = 0; s < eConfig.length; s++) {
+                let numE = eConfig[s];
+                let r = shellRadii[s];
+                
+                // Kecepatan rotasi berbeda per kulit (K paling cepat)
+                let speed = 1.0 / (s + 1); 
+                let baseAngle = timeSim * speed;
+
+                for(let i = 0; i < numE; i++) {
+                    // Spread electrons evenly across the orbit
+                    let angle = baseAngle + (i * (Math.PI*2 / numE));
+                    let ex = cx + r * Math.cos(angle);
+                    let ey = cy + r * Math.sin(angle);
+
+                    // Glow Effect
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = eGlow;
+                    
+                    ctx.fillStyle = eGlow;
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 4, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            // 3. Draw Nucleus
+            // Animasi sedikit goyang / bergetar pelan di tengah
+            let nucOscillationY = Math.sin(timeSim * 2) * 2;
+
+            // Glow if unstable (Radioactive)
+            if(!isStable) {
+                ctx.shadowBlur = 30 + Math.sin(timeSim * 5) * 10;
+                ctx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+            } else {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.1)';
+            }
+
+            nucleusParticles.forEach(p => {
+                let nx = cx + p.x;
+                let ny = cy + p.y + nucOscillationY;
+
+                ctx.beginPath();
+                ctx.arc(nx, ny, 6, 0, Math.PI*2);
+                
+                if (p.type === 'p') {
+                    // Proton Merah
+                    let grad = ctx.createRadialGradient(nx-2, ny-2, 1, nx, ny, 6);
+                    grad.addColorStop(0, '#fca5a5'); grad.addColorStop(1, '#dc2626');
+                    ctx.fillStyle = grad;
+                } else {
+                    // Neutron Abu-abu
+                    let grad = ctx.createRadialGradient(nx-2, ny-2, 1, nx, ny, 6);
+                    grad.addColorStop(0, '#cbd5e1'); grad.addColorStop(1, '#64748b');
+                    ctx.fillStyle = grad;
+                }
+                
+                ctx.fill();
+                // Subtile border
+                ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.stroke();
+            });
+            ctx.shadowBlur = 0;
+
+            animFrame = requestAnimationFrame(drawArena);
+        }
+
+        // --- DATA SNAPSHOT ---
+        function recordData() {
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = ''; 
+            
+            let chargeStr = charge === 0 ? "0" : (charge > 0 ? "+"+charge : charge);
+
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 font-bold text-white">${elemData.name} (${elemData.sym})</td>
+                <td class="p-2 border-b border-slate-700/50 text-center text-red-400 font-mono">${P}</td>
+                <td class="p-2 border-b border-slate-700/50 text-center text-purple-400 font-mono">${mass}</td>
+                <td class="p-2 border-b border-slate-700/50 text-center text-blue-400 font-mono font-bold">${chargeStr}</td>
+            </tr>`;
+            
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([elemData.name, elemData.sym, P, N, E, mass, chargeStr]);
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data rekaman! Klik CATAT terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Struktur Atom", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Koleksi data unsur, isotop, dan ion hasil simulasi.", 14, 28);
+            
+            // Reformat data for PDF (menggabungkan nama dan simbol)
+            let pdfData = dataHistory.map(d => [`${d[0]} (${d[1]})`, d[2], d[3], d[4], d[5], d[6]]);
+
+            doc.autoTable({ startY: 35, head: [['Unsur', 'Proton (Z)', 'Neutron', 'Elektron', 'Massa (A)', 'Muatan']], body: pdfData.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Struktur_Atom.pdf");
+        }
+
+        // Init App Start
+        recalculateAtom();
+        drawArena(); // Start Loop
+    </script>
+</body>
+</html>

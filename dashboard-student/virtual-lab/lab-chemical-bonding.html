@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chemical Bonding Lab - Virtual Lab Kimia</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; font-family: 'Inter', sans-serif; user-select: none; }
+        
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; border: 1px solid #334155; }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .atom-btn { transition: transform 0.2s, filter 0.2s; }
+        .atom-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
+        .atom-btn:active { transform: scale(0.95); }
+
+        .shake-animation { animation: shake 0.4s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 25% { transform: translate(-1px, -2px) rotate(-1deg); } 50% { transform: translate(-3px, 0px) rotate(1deg); } 75% { transform: translate(3px, 2px) rotate(0deg); } 100% { transform: translate(1px, -1px) rotate(1deg); } }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div class="border-l border-slate-700 pl-4">
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500 tracking-tight">🔗 Chemical Bonding Lab</h1>
+                <p class="text-[10px] md:text-xs text-slate-400 font-medium tracking-widest uppercase">Atoms to Molecules • Ionik & Kovalen</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Ikatan</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto text-sm text-slate-300">
+            <h3 class="text-teal-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="flask-conical"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">1. Tambahkan Atom</h4>
+                    <p class="text-xs">Pilih atom dari <b>Library Atom</b> di sebelah kanan. Titik-titik di sekeliling atom adalah Elektron Valensi (elektron terluar yang siap berikatan).</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2 border-b border-slate-600 pb-1">2. Susun & Reaksikan</h4>
+                    <p class="text-xs">Tarik (Drag) atom-atom ke tengah kanvas. Jika kombinasinya pas (misal 1 Na dan 1 Cl, atau 2 H dan 1 O), klik tombol <b class="text-emerald-400">REACT / BOND</b> untuk menyatukannya!</p>
+                </div>
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <h4 class="font-bold text-cyan-400 mb-2">💡 Tips Kestabilan</h4>
+                    <p class="text-xs">Atom ingin mencapai <b>Oktet (8 elektron)</b> atau Duplet (2 elektron khusus H). Jika kamu menggabungkan atom yang salah, sistem akan menolak bereaksi!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner border-l-4 border-l-purple-500">
+                <h3 class="text-purple-400 font-bold mb-2">Ikatan Ionik (Transfer Elektron)</h3>
+                <p class="text-xs mb-2">Terjadi antara unsur <b>Logam</b> (suka melepas elektron) dan <b>Non-Logam</b> (suka menerima elektron). Elektron benar-benar berpindah, membentuk Kation (+) dan Anion (-) yang saling tarik-menarik akibat gaya elektrostatik.</p>
+                <div class="font-mono text-purple-300 text-xs bg-slate-950 p-2 rounded text-center border border-purple-900">Contoh: Na⁺ + Cl⁻ → NaCl (Garam)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner border-l-4 border-l-cyan-500">
+                <h3 class="text-cyan-400 font-bold mb-2">Ikatan Kovalen (Sharing Elektron)</h3>
+                <p class="text-xs mb-2">Terjadi antar sesama unsur <b>Non-Logam</b>. Karena keduanya butuh elektron, mereka saling meminjamkan (berbagi) elektron valensinya agar keduanya stabil mencapai oktet/duplet.</p>
+                <div class="font-mono text-cyan-300 text-xs bg-slate-950 p-2 rounded text-center border border-cyan-900">Contoh: H₂O (Air), CO₂ (Karbon Dioksida)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 max-w-[1400px] mx-auto">
+        
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            
+            <div class="xl:col-span-8 flex flex-col gap-4">
+                
+                <div class="bg-slate-900 rounded-2xl shadow-2xl relative overflow-hidden h-[450px] md:h-[550px]">
+                    
+                    <div class="absolute top-4 left-4 z-20 flex gap-3 pointer-events-none">
+                        <div class="glass-panel px-4 py-2 rounded-xl text-center border-t-2 border-t-slate-400 shadow-lg" id="hudStatusBox">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Sistem</p>
+                            <p class="font-bold text-sm text-slate-300 mt-1 tracking-wider" id="hudStatusTxt">ATOM BEBAS</p>
+                        </div>
+                    </div>
+
+                    <div id="alertMsg" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-center opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl w-[80%] max-w-[400px]">
+                        <span class="text-white font-black text-xl md:text-2xl bg-red-600/90 px-6 py-3 rounded-2xl border-4 border-red-400 block shake-animation mb-2" id="alertTitle">REAKSI GAGAL!</span>
+                        <p class="text-slate-200 bg-slate-900/80 px-4 py-2 rounded-lg font-bold text-xs" id="alertDesc">Kombinasi atom tidak memenuhi aturan Oktet.</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="800" height="550" class="w-full h-full block"></canvas>
+                    
+                    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex gap-4 w-[90%] max-w-[400px]">
+                        <button id="btnReact" onclick="bondAtoms()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] transition transform active:scale-95 text-lg tracking-wider border border-emerald-400">
+                            <i data-lucide="zap" class="inline w-5 h-5 mr-1"></i> REACT / BOND
+                        </button>
+                        <button onclick="clearCanvas()" class="bg-slate-800 hover:bg-red-900/80 text-white font-bold px-4 py-3 rounded-xl border border-slate-600 hover:border-red-500 transition flex items-center justify-center" title="Bersihkan Kanvas">
+                            <i data-lucide="trash-2" width="20"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="xl:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-indigo-500 p-5 shadow-xl flex flex-col">
+                    <h3 class="font-bold text-indigo-400 flex items-center gap-2 uppercase tracking-widest text-sm mb-4 border-b border-slate-700 pb-3"><i data-lucide="library" width="18"></i> Library Atom</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Non-Logam (Kovalen / Anion)</p>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="spawnAtom('H')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-slate-300 flex items-center justify-center text-slate-800 font-bold text-sm mb-1 shadow-inner">H</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 1</span>
+                                </button>
+                                <button onclick="spawnAtom('O')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-sm mb-1 shadow-inner">O</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 6</span>
+                                </button>
+                                <button onclick="spawnAtom('C')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-white font-bold text-sm mb-1 shadow-inner">C</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 4</span>
+                                </button>
+                                <button onclick="spawnAtom('Cl')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm mb-1 shadow-inner">Cl</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 7</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Logam (Kation Ionik)</p>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="spawnAtom('Na')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-sm mb-1 shadow-inner">Na</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 1</span>
+                                </button>
+                                <button onclick="spawnAtom('Mg')" class="atom-btn bg-slate-700 border border-slate-500 rounded-lg p-2 text-center shadow-md">
+                                    <div class="w-8 h-8 mx-auto rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm mb-1 shadow-inner">Mg</div>
+                                    <span class="text-[9px] text-slate-300 block">Val: 2</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i data-lucide="microscope" class="text-emerald-400" width="14"></i> Profil Molekul</h3>
+                    </div>
+                    
+                    <div id="moleculeInsight" class="flex-1 flex flex-col justify-center opacity-50">
+                        <div class="text-center mb-4">
+                            <h2 class="text-4xl font-black text-white tracking-widest" id="molFormula">?</h2>
+                            <p class="text-sm font-bold text-emerald-400 mt-1" id="molName">Belum Terbentuk</p>
+                        </div>
+                        
+                        <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                <span class="text-xs text-slate-400">Jenis Ikatan</span>
+                                <span class="text-xs font-bold text-white" id="molType">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                <span class="text-xs text-slate-400">Bentuk Ruang (VSEPR)</span>
+                                <span class="text-xs font-bold text-white" id="molShape">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-xs text-slate-400">Sifat Polaritas</span>
+                                <span class="text-xs font-bold text-white" id="molPolar">-</span>
+                            </div>
+                        </div>
+
+                        <p class="text-[10px] text-slate-400 mt-4 text-center italic leading-relaxed" id="molDesc">Tarik beberapa atom ke kanvas dan klik REACT untuk membentuk molekul dan melihat profilnya di sini.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- ATOM DATA LIBRARY ---
+        const ATOM_TYPES = {
+            'H':  { color: '#cbd5e1', val: 1, type: 'nonmetal', en: 2.20 },
+            'C':  { color: '#1e293b', val: 4, type: 'nonmetal', en: 2.55 },
+            'O':  { color: '#ef4444', val: 6, type: 'nonmetal', en: 3.44 },
+            'Cl': { color: '#22c55e', val: 7, type: 'nonmetal', en: 3.16 },
+            'Na': { color: '#a855f7', val: 1, type: 'metal', en: 0.93 },
+            'Mg': { color: '#f97316', val: 2, type: 'metal', en: 1.31 }
+        };
+
+        // --- RECIPE DICTIONARY (SMART ENGINE) ---
+        // Karena menggambar elektron Lewis dan VSEPR 2D murni secara dinamis sangat rawan bug,
+        // kita menggunakan pendekatan "Recipe" yang dijamin selalu memberikan output visual yang akurat dan edukatif.
+        const RECIPES = [
+            { 
+                counts: { H: 2 }, formula: "H₂", name: "Gas Hidrogen", bondType: "Kovalen Non-Polar", shape: "Linear", polar: "Non-Polar",
+                desc: "Dua atom H saling berbagi 1 pasang elektron (Ikatan Tunggal) untuk mencapai Duplet (stabil 2 elektron).",
+                render: (cx, cy) => {
+                    drawBondLine(cx-40, cy, cx+40, cy, 1);
+                    drawAtomBase(cx-40, cy, 'H'); drawAtomBase(cx+40, cy, 'H');
+                    drawSharedElectrons(cx, cy, 1);
+                }
+            },
+            { 
+                counts: { O: 2 }, formula: "O₂", name: "Gas Oksigen", bondType: "Kovalen Non-Polar", shape: "Linear", polar: "Non-Polar",
+                desc: "Dua atom Oksigen saling berbagi 2 pasang elektron (Ikatan Rangkap Dua) untuk mencapai Oktet.",
+                render: (cx, cy) => {
+                    drawBondLine(cx-50, cy, cx+50, cy, 2);
+                    drawAtomBase(cx-50, cy, 'O'); drawAtomBase(cx+50, cy, 'O');
+                    drawSharedElectrons(cx, cy, 2);
+                    drawFreeElectrons(cx-50, cy, 4, [Math.PI, Math.PI/2, Math.PI*1.5]); // O1 free e-
+                    drawFreeElectrons(cx+50, cy, 4, [0, Math.PI/2, Math.PI*1.5]); // O2 free e-
+                }
+            },
+            { 
+                counts: { H: 2, O: 1 }, formula: "H₂O", name: "Air", bondType: "Kovalen Polar", shape: "Bengkok (Bent/V-Shape)", polar: "Polar",
+                desc: "Oksigen berbagi elektron dengan 2 atom Hidrogen. Adanya 2 pasang elektron bebas di Oksigen mendesak atom H ke bawah membentuk sudut 104.5°.",
+                render: (cx, cy) => {
+                    let h1x = cx - 50, h1y = cy + 40;
+                    let h2x = cx + 50, h2y = cy + 40;
+                    drawBondLine(cx, cy-10, h1x, h1y, 1); drawBondLine(cx, cy-10, h2x, h2y, 1);
+                    drawAtomBase(cx, cy-10, 'O'); drawAtomBase(h1x, h1y, 'H'); drawAtomBase(h2x, h2y, 'H');
+                    drawSharedElectrons((cx+h1x)/2, (cy-10+h1y)/2, 1); drawSharedElectrons((cx+h2x)/2, (cy-10+h2y)/2, 1);
+                    drawFreeElectrons(cx, cy-10, 4, [Math.PI + Math.PI/4, Math.PI*2 - Math.PI/4]); // Oksigen top free e-
+                }
+            },
+            { 
+                counts: { C: 1, O: 2 }, formula: "CO₂", name: "Karbon Dioksida", bondType: "Kovalen Non-Polar", shape: "Linear", polar: "Non-Polar",
+                desc: "Karbon di tengah berbagi 2 pasang elektron (Ikatan Rangkap Dua) dengan masing-masing Oksigen di sisi kiri dan kanannya secara simetris.",
+                render: (cx, cy) => {
+                    drawBondLine(cx-70, cy, cx, cy, 2); drawBondLine(cx, cy, cx+70, cy, 2);
+                    drawAtomBase(cx, cy, 'C'); drawAtomBase(cx-70, cy, 'O'); drawAtomBase(cx+70, cy, 'O');
+                    drawSharedElectrons(cx-35, cy, 2); drawSharedElectrons(cx+35, cy, 2);
+                    drawFreeElectrons(cx-70, cy, 4, [Math.PI/2, Math.PI*1.5]); 
+                    drawFreeElectrons(cx+70, cy, 4, [Math.PI/2, Math.PI*1.5]); 
+                }
+            },
+            { 
+                counts: { C: 1, H: 4 }, formula: "CH₄", name: "Metana", bondType: "Kovalen Non-Polar", shape: "Tetrahedral", polar: "Non-Polar",
+                desc: "Karbon mengikat 4 atom Hidrogen membentuk bangun ruang Tetrahedral simetris (sudut 109.5°).",
+                render: (cx, cy) => {
+                    let pts = [[cx, cy-60], [cx, cy+60], [cx-60, cy], [cx+60, cy]]; // 2D Cross representation
+                    pts.forEach(p => drawBondLine(cx, cy, p[0], p[1], 1));
+                    drawAtomBase(cx, cy, 'C');
+                    pts.forEach(p => { drawAtomBase(p[0], p[1], 'H'); drawSharedElectrons((cx+p[0])/2, (cy+p[1])/2, 1); });
+                }
+            },
+            { 
+                counts: { Na: 1, Cl: 1 }, formula: "NaCl", name: "Natrium Klorida (Garam)", bondType: "Ionik", shape: "Kristal Lattis (Linear 2D)", polar: "Sangat Polar (Ion)",
+                desc: "Na melepas 1 elektron valensinya secara total ke Cl. Na menjadi Kation (+), Cl menjadi Anion (-) dengan oktet penuh. Tarik-menarik elektrostatis terjadi.",
+                render: (cx, cy) => {
+                    // No lines for ionic. Just close proximity.
+                    drawAtomBase(cx-40, cy, 'Na'); drawAtomBase(cx+40, cy, 'Cl');
+                    // Draw Charges
+                    ctx.fillStyle = '#ef4444'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('+', cx-20, cy-20);
+                    ctx.fillStyle = '#3b82f6'; ctx.fillText('-', cx+60, cy-20);
+                    // Draw 8 electrons fully on Cl
+                    drawFreeElectrons(cx+40, cy, 8, [0, Math.PI/2, Math.PI, Math.PI*1.5, Math.PI/4, Math.PI*0.75, Math.PI*1.25, Math.PI*1.75]); 
+                }
+            },
+            { 
+                counts: { Mg: 1, Cl: 2 }, formula: "MgCl₂", name: "Magnesium Klorida", bondType: "Ionik", shape: "Kristal Linier/Bengkok", polar: "Sangat Polar (Ion)",
+                desc: "Mg (Valensi 2) melepas 2 elektronnya, masing-masing diberikan kepada 2 atom Cl yang berbeda. Terbentuk Mg²⁺ dan 2 buah Cl⁻.",
+                render: (cx, cy) => {
+                    drawAtomBase(cx, cy, 'Mg'); drawAtomBase(cx-70, cy, 'Cl'); drawAtomBase(cx+70, cy, 'Cl');
+                    // Charges
+                    ctx.fillStyle = '#ef4444'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('2+', cx+20, cy-20);
+                    ctx.fillStyle = '#3b82f6'; ctx.fillText('-', cx-50, cy-20); ctx.fillText('-', cx+90, cy-20);
+                    // 8 electrons on both Cl
+                    drawFreeElectrons(cx-70, cy, 8, [0, Math.PI/2, Math.PI, Math.PI*1.5, Math.PI/4, Math.PI*0.75, Math.PI*1.25, Math.PI*1.75]); 
+                    drawFreeElectrons(cx+70, cy, 8, [0, Math.PI/2, Math.PI, Math.PI*1.5, Math.PI/4, Math.PI*0.75, Math.PI*1.25, Math.PI*1.75]); 
+                }
+            },
+            { 
+                counts: { H: 1, Cl: 1 }, formula: "HCl", name: "Asam Klorida", bondType: "Kovalen Polar", shape: "Linear", polar: "Sangat Polar",
+                desc: "H dan Cl berbagi 1 elektron. Namun, Elektronegativitas Cl (3.16) jauh lebih kuat dari H (2.20), sehingga elektron lebih tertarik ke arah Cl (Kutub Negatif parsial).",
+                render: (cx, cy) => {
+                    drawBondLine(cx-40, cy, cx+40, cy, 1);
+                    drawAtomBase(cx-40, cy, 'H'); drawAtomBase(cx+40, cy, 'Cl');
+                    drawSharedElectrons(cx+15, cy, 1); // Digeser agak ke kanan dekat Cl
+                    drawFreeElectrons(cx+40, cy, 6, [Math.PI/2, Math.PI*1.5, 0]); // Cl sisa 6
+                }
+            }
+        ];
+
+        // --- STATE VARIABLES ---
+        let workspaceAtoms = [];
+        let isBonded = false;
+        let bondedRecipe = null;
+        let draggedAtom = null;
+
+        // --- DRAG & DROP LOGIC ---
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if(isBonded) return; // Kunci kanvas jika sudah jadi molekul
+            const pos = getMousePos(e);
+            // Cek atom mana yang di-klik (dari belakang agar yang paling atas terpilih)
+            for (let i = workspaceAtoms.length - 1; i >= 0; i--) {
+                let a = workspaceAtoms[i];
+                let dist = Math.sqrt(Math.pow(pos.x - a.x, 2) + Math.pow(pos.y - a.y, 2));
+                if (dist < 30) {
+                    draggedAtom = a;
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggedAtom) {
+                const pos = getMousePos(e);
+                draggedAtom.x = Math.max(30, Math.min(canvas.width - 30, pos.x));
+                draggedAtom.y = Math.max(30, Math.min(canvas.height - 30, pos.y));
+            } else {
+                const pos = getMousePos(e);
+                let hover = false;
+                workspaceAtoms.forEach(a => {
+                    if (Math.sqrt(Math.pow(pos.x - a.x, 2) + Math.pow(pos.y - a.y, 2)) < 30) hover = true;
+                });
+                canvas.style.cursor = isBonded ? 'default' : (hover ? 'grab' : 'default');
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => { draggedAtom = null; canvas.style.cursor = 'default'; });
+        canvas.addEventListener('mouseleave', () => { draggedAtom = null; });
+
+        // --- UI ACTIONS ---
+        function spawnAtom(symbol) {
+            if(isBonded) return alert("Hancurkan molekul terlebih dahulu (Klik icon Tong Sampah) sebelum menambah atom baru!");
+            if(workspaceAtoms.length >= 6) return alert("Kanvas penuh! Maksimal 6 atom untuk simulasi ini.");
+            
+            // Random spawn near center
+            let spawnX = (canvas.width / 2) + (Math.random() * 100 - 50);
+            let spawnY = (canvas.height / 2) + (Math.random() * 100 - 50);
+            
+            workspaceAtoms.push({
+                symbol: symbol,
+                x: spawnX,
+                y: spawnY,
+                data: ATOM_TYPES[symbol]
+            });
+            updateStatusBox();
+        }
+
+        function clearCanvas() {
+            workspaceAtoms = [];
+            isBonded = false;
+            bondedRecipe = null;
+            document.getElementById('alertMsg').classList.add('opacity-0');
+            updateInsight(null);
+            updateStatusBox();
+        }
+
+        function updateStatusBox() {
+            const box = document.getElementById('hudStatusBox');
+            const txt = document.getElementById('hudStatusTxt');
+            
+            if(workspaceAtoms.length === 0) {
+                txt.innerText = "KANVAS KOSONG";
+                box.classList.replace('border-t-emerald-500', 'border-t-slate-400');
+            } else if (isBonded) {
+                txt.innerText = "MOLEKUL STABIL";
+                box.classList.replace('border-t-slate-400', 'border-t-emerald-500');
+            } else {
+                txt.innerText = "ATOM BEBAS (" + workspaceAtoms.length + ")";
+                box.classList.replace('border-t-emerald-500', 'border-t-slate-400');
+            }
+        }
+
+        function bondAtoms() {
+            if(workspaceAtoms.length < 2) return alert("Butuh minimal 2 atom untuk direaksikan!");
+            if(isBonded) return;
+
+            document.getElementById('alertMsg').classList.add('opacity-0');
+
+            // 1. Hitung komposisi atom di kanvas
+            let composition = {};
+            workspaceAtoms.forEach(a => {
+                composition[a.symbol] = (composition[a.symbol] || 0) + 1;
+            });
+
+            // 2. Cari di database resep (Matching)
+            bondedRecipe = null;
+            for(let i=0; i<RECIPES.length; i++) {
+                let rec = RECIPES[i];
+                let isMatch = true;
+                
+                // Cek apakah semua kunci dan valuenya sama persis
+                if (Object.keys(rec.counts).length !== Object.keys(composition).length) isMatch = false;
+                else {
+                    for (let key in rec.counts) {
+                        if (composition[key] !== rec.counts[key]) { isMatch = false; break; }
+                    }
+                }
+
+                if(isMatch) { bondedRecipe = rec; break; }
+            }
+
+            // 3. Eksekusi Hasil
+            if(bondedRecipe) {
+                isBonded = true;
+                updateInsight(bondedRecipe);
+                updateStatusBox();
+                // Animasi visual diserahkan ke render loop (drawArena) yang akan membaca state isBonded & bondedRecipe
+            } else {
+                // Tampilkan Peringatan Gagal
+                const alertBox = document.getElementById('alertMsg');
+                const title = document.getElementById('alertTitle');
+                const desc = document.getElementById('alertDesc');
+                
+                alertBox.classList.remove('opacity-0');
+                
+                // Beri hints edukatif (misal ada logam dan non-logam tapi jumlah salah)
+                let hasMetal = false; let hasNonMetal = false;
+                workspaceAtoms.forEach(a => { if(a.data.type === 'metal') hasMetal=true; else hasNonMetal=true; });
+                
+                if (hasMetal && hasNonMetal) {
+                    desc.innerText = "Ion tidak seimbang! Ingat, total pelepasan dan penerimaan elektron harus sama agar muatan netral.";
+                } else if (hasNonMetal) {
+                    desc.innerText = "Gagal mencapai Oktet/Duplet! Butuh lebih banyak atom agar semua elektron bisa berpasangan dengan sempurna.";
+                } else {
+                    desc.innerText = "Kombinasi Logam dengan Logam biasanya membentuk Ikatan Logam (kisi kristal padat), bukan molekul tunggal yang bisa divisualisasikan di sini.";
+                }
+                
+                setTimeout(() => { alertBox.classList.add('opacity-0'); }, 4000);
+            }
+        }
+
+        function updateInsight(recipe) {
+            const panel = document.getElementById('moleculeInsight');
+            if(!recipe) {
+                panel.classList.add('opacity-50');
+                document.getElementById('molFormula').innerText = "?";
+                document.getElementById('molName').innerText = "Belum Terbentuk";
+                document.getElementById('molType').innerText = "-";
+                document.getElementById('molShape').innerText = "-";
+                document.getElementById('molPolar').innerText = "-";
+                document.getElementById('molDesc').innerText = "Tarik beberapa atom ke kanvas dan klik REACT untuk membentuk molekul dan melihat profilnya di sini.";
+            } else {
+                panel.classList.remove('opacity-50');
+                document.getElementById('molFormula').innerText = recipe.formula;
+                document.getElementById('molName').innerText = recipe.name;
+                document.getElementById('molType').innerText = recipe.bondType;
+                document.getElementById('molShape').innerText = recipe.shape;
+                document.getElementById('molPolar').innerText = recipe.polar;
+                document.getElementById('molDesc').innerText = recipe.desc;
+            }
+        }
+
+        // --- RENDER VISUAL (CANVAS 2D) ---
+        let renderTime = 0;
+
+        function drawAtomBase(x, y, symbol) {
+            let data = ATOM_TYPES[symbol];
+            // Atom Body
+            ctx.shadowColor = data.color; ctx.shadowBlur = 10;
+            ctx.fillStyle = data.color;
+            ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0; // reset
+            
+            // Text
+            ctx.fillStyle = (symbol === 'H' || symbol === 'Mg') ? '#1e293b' : '#ffffff';
+            ctx.font = "bold 18px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(symbol, x, y);
+        }
+
+        function drawFreeElectrons(x, y, count, angles) {
+            // Draw small glowing dots
+            ctx.fillStyle = '#fde047'; // Yellow glow
+            ctx.shadowColor = '#facc15'; ctx.shadowBlur = 5;
+            
+            // We use specific angles to make Lewis dot structure look good
+            let drawAngles = angles || [];
+            if(drawAngles.length === 0) {
+                // Auto generate spread angles if none provided
+                for(let i=0; i<count; i++) drawAngles.push(i * (Math.PI*2 / count));
+            }
+            
+            for(let i=0; i<count; i++) {
+                if(i >= drawAngles.length) break;
+                let a = drawAngles[i];
+                // Sedikit bergetar animasi
+                let wiggle = Math.sin(renderTime * 5 + i) * 2;
+                let ex = x + Math.cos(a) * (35 + wiggle);
+                let ey = y + Math.sin(a) * (35 + wiggle);
+                
+                ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function drawSharedElectrons(x, y, pairs) {
+            ctx.fillStyle = '#67e8f9'; // Cyan for shared
+            ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 8;
+            
+            if(pairs === 1) { // Single bond (2 electrons)
+                ctx.beginPath(); ctx.arc(x, y - 5, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x, y + 5, 3, 0, Math.PI*2); ctx.fill();
+            } else if (pairs === 2) { // Double bond (4 electrons)
+                ctx.beginPath(); ctx.arc(x - 5, y - 5, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x - 5, y + 5, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 5, y - 5, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 5, y + 5, 3, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function drawBondLine(x1, y1, x2, y2, strength) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            if(strength === 1) {
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            } else if (strength === 2) {
+                ctx.lineWidth = 3;
+                let angle = Math.atan2(y2 - y1, x2 - x1);
+                let offX = Math.cos(angle + Math.PI/2) * 5;
+                let offY = Math.sin(angle + Math.PI/2) * 5;
+                
+                ctx.beginPath(); ctx.moveTo(x1 + offX, y1 + offY); ctx.lineTo(x2 + offX, y2 + offY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x1 - offX, y1 - offY); ctx.lineTo(x2 - offX, y2 - offY); ctx.stroke();
+            }
+        }
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            renderTime += 0.02;
+
+            if(!isBonded) {
+                // Tampilan Mode Bebas (Atom terserak, elektron valensi normal)
+                workspaceAtoms.forEach(a => {
+                    // Bergetar halus seperti Brownian motion
+                    let driftX = Math.sin(renderTime * 2 + a.x) * 0.5;
+                    let driftY = Math.cos(renderTime * 3 + a.y) * 0.5;
+                    
+                    drawAtomBase(a.x + driftX, a.y + driftY, a.symbol);
+                    
+                    // Lewis Dot Normal
+                    drawFreeElectrons(a.x + driftX, a.y + driftY, a.data.val);
+                });
+            } else {
+                // Tampilan Mode Terikat (Eksekusi Resep Render di Tengah Layar)
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                
+                // Panggil visualisasi statis spesifik bentuk molekul dari database
+                if(bondedRecipe && bondedRecipe.render) {
+                    // Smooth Transition animation could be added here, but direct snapping to formula is cleaner for a Lewis/VSEPR lab
+                    bondedRecipe.render(cx, cy);
+                }
+            }
+
+            animFrame = requestAnimationFrame(drawArena);
+        }
+
+        // Init App Start
+        drawArena(); // Start Loop
+    </script>
+</body>
+</html>

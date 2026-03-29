@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Arena - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-emerald::-webkit-slider-thumb { background: #10b981; box-shadow: 0 0 15px #10b981; }
+
+        #simCanvas { background-color: #1e293b; width: 100%; height: auto; border-radius: 1rem; }
+        
+        /* Custom Radio Buttons for Modes */
+        .mode-radio:checked + label { background-color: #10b981; color: white; border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+        .surface-radio:checked + label { border-color: #10b981; background-color: rgba(16, 185, 129, 0.1); }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500 tracking-tight">⚖️ Force Arena</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Hukum Newton I, II, III</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 rounded-lg text-sm font-bold text-emerald-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-emerald-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-emerald-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Simulasi</h3>
+            <ul class="list-disc list-inside space-y-2">
+                <li><b>Pilih Mode Hukum:</b> Pilih salah satu dari 3 Hukum Newton di panel kontrol.</li>
+                <li><b>Gaya Dorong (Merah):</b> Gaya yang kamu berikan ke balok. Di Hukum I, ini hanya "tendangan" awal.</li>
+                <li><b>Gaya Gesek (Biru):</b> Melawan arah gerak. Ubah jenis permukaan (Es/Normal/Pasir) untuk melihat perbedaannya.</li>
+                <li><b>Hukum III (Aksi-Reaksi):</b> Balok A akan didorong menabrak Balok B. Perhatikan munculnya gaya kontak (warna ungu) yang besarnya sama tapi berlawanan arah saat terjadi tabrakan!</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-emerald-400 font-bold mb-2">Hukum I (Inersia)</h3>
+                <p class="text-xs mb-2">Benda akan mempertahankan keadaan diam atau bergeraknya jika resultan gaya = 0.</p>
+                <div class="font-mono text-emerald-300 text-xs">\( \sum F = 0 \Rightarrow a = 0 \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-teal-400 font-bold mb-2">Hukum II (Dinamika)</h3>
+                <p class="text-xs mb-2">Percepatan sebanding dengan gaya dan berbanding terbalik dengan massa.</p>
+                <div class="font-mono text-teal-300 text-xs">\( a = \frac{\sum F}{m} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-purple-400 font-bold mb-2">Hukum III (Aksi-Reaksi)</h3>
+                <p class="text-xs mb-2">Setiap aksi selalu ada reaksi yang sama besar dan berlawanan arah.</p>
+                <div class="font-mono text-purple-300 text-xs">\( F_{aksi} = -F_{reaksi} \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden group">
+            
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex bg-slate-800 p-1 rounded-xl border border-slate-700 shadow-lg">
+                <input type="radio" name="mode" id="m1" value="law1" class="hidden mode-radio" onchange="changeMode()">
+                <label for="m1" class="px-4 py-1.5 rounded-lg text-sm font-bold text-slate-400 cursor-pointer transition">Hukum I</label>
+                
+                <input type="radio" name="mode" id="m2" value="law2" class="hidden mode-radio" checked onchange="changeMode()">
+                <label for="m2" class="px-4 py-1.5 rounded-lg text-sm font-bold text-slate-400 cursor-pointer transition">Hukum II</label>
+                
+                <input type="radio" name="mode" id="m3" value="law3" class="hidden mode-radio" onchange="changeMode()">
+                <label for="m3" class="px-4 py-1.5 rounded-lg text-sm font-bold text-slate-400 cursor-pointer transition">Hukum III</label>
+            </div>
+
+            <div class="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Waktu</p>
+                    <p class="font-mono text-xl text-white font-bold" id="hudTime">0.0 s</p>
+                </div>
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Resultan Gaya (ΣF)</p>
+                    <p class="font-mono text-xl text-emerald-400 font-bold" id="hudFnet">0 N</p>
+                </div>
+            </div>
+
+            <div id="insightMessage" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 bg-slate-900/90 border border-emerald-500/50 px-6 py-2 rounded-full text-emerald-400 font-bold text-sm tracking-wide shadow-lg opacity-0 transition-opacity duration-300">
+                Insight Text
+            </div>
+
+            <canvas id="simCanvas" width="1000" height="350" class="w-full h-auto"></canvas>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-emerald-500 p-5 shadow-lg lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-emerald-400 flex items-center gap-2"><i data-lucide="box"></i> Parameter Objek & Gaya</h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300">Massa Balok (\(m\))</label>
+                            <span id="valMass" class="text-sm text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded">10 kg</span>
+                        </div>
+                        <input type="range" id="inputMass" min="1" max="100" value="10" class="slider-emerald" oninput="updateControls()">
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label id="labelForce" class="text-sm font-bold text-slate-300">Gaya Dorong (\(F\))</label>
+                            <span id="valForce" class="text-sm text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded">50 N</span>
+                        </div>
+                        <input type="range" id="inputForce" min="0" max="500" value="50" step="5" class="slider-emerald" oninput="updateControls()">
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-5 border-t border-slate-700">
+                    <label class="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">Permukaan Lantai (Koefisien Gesek \(\mu\))</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <input type="radio" name="surface" id="s1" value="0.02" class="hidden surface-radio" onchange="updateControls()">
+                            <label for="s1" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-emerald-400 transition">
+                                <span class="text-xl block mb-1">🧊</span><span class="text-xs font-bold text-slate-300">Es Licin</span>
+                            </label>
+                        </div>
+                        <div>
+                            <input type="radio" name="surface" id="s2" value="0.3" class="hidden surface-radio" checked onchange="updateControls()">
+                            <label for="s2" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-emerald-400 transition">
+                                <span class="text-xl block mb-1">🪨</span><span class="text-xs font-bold text-slate-300">Lantai Biasa</span>
+                            </label>
+                        </div>
+                        <div>
+                            <input type="radio" name="surface" id="s3" value="0.7" class="hidden surface-radio" onchange="updateControls()">
+                            <label for="s3" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-emerald-400 transition">
+                                <span class="text-xl block mb-1">🏜️</span><span class="text-xs font-bold text-slate-300">Pasir Kasar</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col justify-center gap-4">
+                <button id="btnLaunch" onclick="startSim()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider">
+                    <i data-lucide="play" width="24"></i> APPLY FORCE
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3 mt-auto">
+                    <button id="btnPause" onclick="pauseSim()" disabled class="bg-slate-700 text-slate-400 font-bold py-2.5 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 text-xs cursor-not-allowed">
+                        <i data-lucide="pause" width="16"></i> Pause
+                    </button>
+                    <button onclick="resetLab()" class="bg-slate-700 text-white font-bold py-2.5 rounded-xl hover:bg-red-600 transition flex justify-center items-center gap-2 text-xs">
+                        <i data-lucide="rotate-ccw" width="16"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Rekaman Data Sensor</h3>
+                <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                    <i data-lucide="file-down" width="14"></i> Export PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-sm" id="dataTable">
+                    <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Waktu (s)</th>
+                            <th class="p-3 border-b border-slate-700 text-white">Posisi X (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Kecepatan (m/s)</th>
+                            <th class="p-3 border-b border-slate-700 text-emerald-400">Percepatan (m/s²)</th>
+                            <th class="p-3 border-b border-slate-700 text-red-400">Gaya Total (N)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let isRunning = false;
+        let animFrame;
+        let t = 0;
+        let dt = 0.05; // 50ms per physics tick
+        const g = 9.8;
+        
+        // Mode & Controls
+        let currentMode = 'law2'; // law1, law2, law3
+        let m = 10;
+        let fApp = 50;
+        let mu = 0.3;
+
+        // Objects Data
+        // Posisi dalam meter (1m = 10px di visual canvas)
+        let objA = { x: 5, y: 0, w: 10, h: 10, v: 0, a: 0, fNet: 0, fFric: 0 };
+        let objB = { x: 40, y: 0, w: 10, h: 10, m: 20, v: 0, a: 0, active: false, fNet: 0 }; // Box B for Law 3
+        let collisionForce = 0; // Aksi Reaksi
+
+        let dataHistory = [];
+        let lastLogTime = -1;
+
+        // --- PHYSICS LOGIC ---
+        function changeMode() {
+            if(isRunning) resetLab();
+            currentMode = document.querySelector('input[name="mode"]:checked').value;
+            
+            const sliderF = document.getElementById('inputForce');
+            const labelF = document.getElementById('labelForce');
+            
+            if(currentMode === 'law1') {
+                labelF.innerText = "Dorongan Awal (N)";
+                sliderF.value = 300; // Cukup untuk nendang
+                objB.active = false;
+            } else if (currentMode === 'law2') {
+                labelF.innerText = "Gaya Dorong Konstan (N)";
+                objB.active = false;
+            } else if (currentMode === 'law3') {
+                labelF.innerText = "Gaya Dorong Konstan (N)";
+                objB.active = true;
+                objB.x = 40; objB.v = 0;
+            }
+            updateControls();
+        }
+
+        function updateControls() {
+            if(isRunning) return;
+            m = parseFloat(document.getElementById('inputMass').value);
+            fApp = parseFloat(document.getElementById('inputForce').value);
+            mu = parseFloat(document.querySelector('input[name="surface"]:checked').value);
+            
+            document.getElementById('valMass').innerText = m + " kg";
+            document.getElementById('valForce').innerText = fApp + " N";
+
+            // Visual Size adaptif berdasarkan massa
+            objA.w = Math.max(8, 4 + (m * 0.2)); 
+            objA.h = objA.w;
+            objB.w = Math.max(8, 4 + (objB.m * 0.2));
+            objB.h = objB.w;
+
+            objA.x = 5; objA.v = 0; objA.a = 0;
+            if(objB.active) objB.x = objA.x + objA.w + 20;
+
+            t = 0;
+            drawArena();
+        }
+
+        function updatePhysics() {
+            t += dt;
+            
+            let currentF = 0;
+            if (currentMode === 'law1') {
+                // Di Hukum 1, dorongan hanya terjadi selama 0.5 detik pertama sebagai "tendangan"
+                if (t <= 0.5) currentF = fApp; 
+                else currentF = 0;
+            } else {
+                currentF = fApp;
+            }
+
+            collisionForce = 0;
+
+            // GESEKAN (Friction) untuk Objek A
+            // Arah gesekan berlawanan dengan arah gerak (v) atau arah dorongan (currentF) jika sedang diam
+            let maxFric = mu * m * g;
+            
+            if (Math.abs(objA.v) > 0.05) { // Sedang bergerak (Kinetik)
+                objA.fFric = -Math.sign(objA.v) * maxFric;
+            } else { // Sedang diam (Statis)
+                if (Math.abs(currentF) <= maxFric && currentMode !== 'law3') {
+                    // Gaya dorong tidak kuat melawan gesekan statis maksimum
+                    objA.fFric = -currentF; 
+                    objA.v = 0;
+                } else {
+                    // Gaya dorong jebol gesekan
+                    objA.fFric = -Math.sign(currentF) * maxFric;
+                }
+            }
+
+            objA.fNet = currentF + objA.fFric;
+
+            // HUKUM 3 (Collision / Pegas)
+            if (currentMode === 'law3' && objB.active) {
+                // Hitung tumpang tindih (Overlap)
+                let overlap = (objA.x + objA.w) - objB.x;
+                if (overlap > 0) {
+                    let k = 2000; // Konstanta pegas kekakuan tinggi
+                    collisionForce = k * overlap; // Gaya aksi-reaksi
+                    
+                    objA.fNet -= collisionForce; // A tertahan oleh B (Reaksi)
+                    
+                    // Fisika Objek B
+                    let fB_app = collisionForce; // B didorong oleh A (Aksi)
+                    let maxFricB = mu * objB.m * g;
+                    
+                    if (Math.abs(objB.v) > 0.05) objB.fFric = -Math.sign(objB.v) * maxFricB;
+                    else {
+                        if (Math.abs(fB_app) <= maxFricB) { objB.fFric = -fB_app; objB.v = 0; }
+                        else { objB.fFric = -Math.sign(fB_app) * maxFricB; }
+                    }
+                    
+                    objB.fNet = fB_app + objB.fFric;
+                    objB.a = objB.fNet / objB.m;
+                    objB.v += objB.a * dt;
+                    objB.x += objB.v * dt;
+                } else {
+                    // Jika B sedang bergerak sendiri setelah terlepas
+                    let maxFricB = mu * objB.m * g;
+                    if (Math.abs(objB.v) > 0.05) {
+                        objB.fFric = -Math.sign(objB.v) * maxFricB;
+                        objB.fNet = objB.fFric;
+                        objB.a = objB.fNet / objB.m;
+                        objB.v += objB.a * dt;
+                        objB.x += objB.v * dt;
+                    }
+                }
+            }
+
+            // Eksekusi Hukum 2 Newton (a = F/m)
+            objA.a = objA.fNet / m;
+            objA.v += objA.a * dt;
+            objA.x += objA.v * dt;
+
+            // Fix floating point errors (berhenti sempurna saat direm gesekan)
+            if (Math.abs(objA.v) < 0.05 && currentF === 0) { objA.v = 0; objA.a = 0; objA.fNet = 0; objA.fFric = 0;}
+            if (currentMode === 'law3' && Math.abs(objB.v) < 0.05 && collisionForce === 0) { objB.v = 0; objB.a = 0; objB.fNet = 0;}
+
+            updateHUD(currentF);
+        }
+
+        // --- RENDER VISUAL ---
+        function getCx(meters) { return 50 + (meters * 10); } // 1m = 10px
+        const groundY = 250;
+
+        function drawArrow(startX, startY, lenX, color, text) {
+            if(Math.abs(lenX) < 2) return; // Terlalu kecil jangan digambar
+            
+            // Limit panah agar tidak terlalu panjang merusak layar
+            let visualLen = Math.sign(lenX) * Math.min(Math.abs(lenX), 150); 
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX + visualLen, startY);
+            ctx.stroke();
+            
+            // Kepala panah
+            ctx.beginPath();
+            if(visualLen > 0) {
+                ctx.moveTo(startX + visualLen + 2, startY);
+                ctx.lineTo(startX + visualLen - 10, startY - 6);
+                ctx.lineTo(startX + visualLen - 10, startY + 6);
+            } else {
+                ctx.moveTo(startX + visualLen - 2, startY);
+                ctx.lineTo(startX + visualLen + 10, startY - 6);
+                ctx.lineTo(startX + visualLen + 10, startY + 6);
+            }
+            ctx.fill();
+
+            // Label
+            ctx.font = "bold 12px sans-serif";
+            ctx.fillText(text, startX + visualLen/2 - 10, startY - 15);
+        }
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Surface Floor
+            let floorColor = '#475569';
+            if(mu === 0.02) floorColor = '#bae6fd'; // Es
+            else if(mu === 0.7) floorColor = '#ca8a04'; // Pasir
+            
+            ctx.fillStyle = floorColor;
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // Draw Distance Markers
+            ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+            for(let i=0; i<=90; i+=10) {
+                ctx.fillRect(getCx(i), groundY, 2, 5);
+                ctx.fillText(i + 'm', getCx(i)-5, groundY + 18);
+            }
+
+            // --- DRAW OBJECT B (If Active) ---
+            if(currentMode === 'law3' && objB.active) {
+                let bx = getCx(objB.x);
+                let bw = objB.w * 10;
+                let bh = objB.h * 10;
+                
+                ctx.fillStyle = '#334155'; // Balok Beton (B)
+                ctx.fillRect(bx, groundY - bh, bw, bh);
+                ctx.strokeStyle = '#0f172a'; ctx.lineWidth=2; ctx.strokeRect(bx, groundY - bh, bw, bh);
+                
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px sans-serif';
+                ctx.fillText(objB.m+'kg', bx + bw/2 - 15, groundY - bh/2 + 5);
+
+                // Draw Forces on B
+                if (collisionForce > 0) {
+                    // F_aksi dari A ke B (Kanan)
+                    drawArrow(bx, groundY - bh/2, collisionForce, '#a855f7', 'F aksi'); 
+                }
+                if (objB.fFric !== 0) drawArrow(bx + bw/2, groundY - bh + 10, objB.fFric, '#3b82f6', 'Gesekan');
+            }
+
+            // --- DRAW OBJECT A ---
+            let ax = getCx(objA.x);
+            let aw = objA.w * 10;
+            let ah = objA.h * 10;
+            
+            ctx.fillStyle = '#10b981'; // Balok Utama (A)
+            ctx.fillRect(ax, groundY - ah, aw, ah);
+            ctx.strokeStyle = '#047857'; ctx.lineWidth=2; ctx.strokeRect(ax, groundY - ah, aw, ah);
+            
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px sans-serif';
+            ctx.fillText(m+'kg', ax + aw/2 - 15, groundY - ah/2 + 5);
+
+            // --- DRAW VECTORS FOR A ---
+            let currentF = (currentMode === 'law1' && t > 0.5) ? 0 : fApp;
+            if(!isRunning) currentF = fApp; // Tampilkan rencana gaya saat diam
+
+            let centerA_Y = groundY - ah/2;
+            
+            // 1. Gaya Dorong (Merah - Kanan)
+            if (currentF > 0) drawArrow(ax, centerA_Y, currentF, '#ef4444', 'F dorong');
+            
+            // 2. Gaya Gesek (Biru - Kiri)
+            if (objA.fFric !== 0) drawArrow(ax + aw/2, groundY - 10, objA.fFric, '#3b82f6', 'Gesekan');
+
+            // 3. Gaya Reaksi dari B (Ungu - Kiri)
+            if (currentMode === 'law3' && collisionForce > 0) {
+                drawArrow(ax + aw, centerA_Y, -collisionForce, '#a855f7', 'F reaksi');
+            }
+
+            // 4. Resultan Gaya Total (Hijau)
+            if(isRunning && Math.abs(objA.fNet) > 0.5) {
+                drawArrow(ax + aw/2, groundY - ah - 20, objA.fNet, '#10b981', 'ΣF (Total)');
+            }
+        }
+
+        // --- ANIMATION & DATA LOGGING ---
+        function showInsight(text) {
+            const el = document.getElementById('insightMessage');
+            el.innerText = text;
+            el.classList.remove('opacity-0');
+            clearTimeout(window.insightTimer);
+            window.insightTimer = setTimeout(() => { el.classList.add('opacity-0'); }, 3000);
+        }
+
+        function updateHUD(currentF) {
+            document.getElementById('hudTime').innerText = t.toFixed(1) + " s";
+            document.getElementById('hudFnet').innerText = objA.fNet.toFixed(1) + " N";
+            
+            // Auto Insights
+            if(currentMode === 'law1' && t > 0.5 && Math.abs(objA.a) < 0.1 && objA.v > 0.1) {
+                showInsight("Hukum I: Resultan Gaya = 0, balok meluncur dengan kecepatan tetap (GLB)!");
+            }
+            if(currentMode === 'law2' && objA.a > 0 && Math.abs(objA.fNet) > 0) {
+                showInsight(`Hukum II: Percepatan konstan ${objA.a.toFixed(1)} m/s²`);
+            }
+            if(currentMode === 'law3' && collisionForce > 50) {
+                showInsight(`Hukum III: Tabrakan! F_aksi = ${collisionForce.toFixed(0)} N, F_reaksi = -${collisionForce.toFixed(0)} N`);
+            }
+            if(currentF > 0 && Math.abs(objA.v) < 0.05 && objA.fNet === 0 && currentMode !== 'law3') {
+                showInsight("Gaya dorong kurang kuat melawan Gesekan Statis! Balok diam.");
+            }
+        }
+
+        function animate() {
+            if(!isRunning) return;
+            
+            updatePhysics();
+            drawArena();
+
+            // Log Data ke Tabel setiap 0.5 detik
+            if(t - lastLogTime >= 0.5) {
+                const tStr = t.toFixed(1);
+                const row = `<tr>
+                    <td class="p-2 border-b border-slate-700/50">${tStr}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-white">${objA.x.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-blue-400">${objA.v.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-emerald-400">${objA.a.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-red-400">${objA.fNet.toFixed(2)}</td>
+                </tr>`;
+                document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+                dataHistory.push([tStr, objA.x.toFixed(2), objA.v.toFixed(2), objA.a.toFixed(2), objA.fNet.toFixed(2)]);
+                
+                lastLogTime = t;
+            }
+
+            // Stop jika keluar layar
+            if(objA.x > 85) {
+                pauseSim();
+                showInsight("Objek keluar dari arena percobaan!");
+            } else {
+                animFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        // --- BUTTON CONTROLS ---
+        function startSim() {
+            if(!isRunning) {
+                if(t === 0) {
+                    document.getElementById('tableBody').innerHTML = '';
+                    dataHistory = [];
+                }
+                isRunning = true;
+                document.getElementById('btnLaunch').disabled = true;
+                document.getElementById('btnLaunch').classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('btnPause').disabled = false;
+                document.getElementById('btnPause').classList.remove('cursor-not-allowed', 'text-slate-400');
+                document.getElementById('btnPause').classList.add('text-white');
+                animFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        function pauseSim() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnLaunch').innerHTML = `<i data-lucide="play" width="24"></i> RESUME`;
+            document.getElementById('btnPause').disabled = true;
+            document.getElementById('btnPause').classList.add('cursor-not-allowed', 'text-slate-400');
+            lucide.createIcons();
+        }
+
+        function resetLab() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            t = 0; lastLogTime = -1;
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnLaunch').innerHTML = `<i data-lucide="play" width="24"></i> APPLY FORCE`;
+            document.getElementById('btnPause').disabled = true;
+            document.getElementById('insightMessage').classList.add('opacity-0');
+            lucide.createIcons(); 
+            
+            updateControls(); // Ini akan me-reset posisi x & v ke 0
+        }
+
+        // --- PDF EXPORT ---
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Jalankan simulasi terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Hukum Newton", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Mode Eksperimen : ${currentMode.toUpperCase()}`, 14, 30);
+            doc.text(`Massa Benda (m) : ${m} kg`, 14, 36);
+            doc.text(`Gaya Dorong (F) : ${currentMode === 'law1' ? 'Hanya Awal' : fApp + ' N'}`, 14, 42);
+            doc.text(`Koefisien Gesek : ${mu} (\u03BC)`, 14, 48); // \u03BC is micro/mu symbol
+            
+            doc.autoTable({ startY: 55, head: [['Waktu (s)', 'Posisi X (m)', 'Kecepatan (m/s)', 'Percepatan (m/s2)', 'Gaya Total (N)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            doc.save("Laporan_Hukum_Newton.pdf");
+        }
+
+        // Init App
+        changeMode();
+    </script>
+</body>
+</html>

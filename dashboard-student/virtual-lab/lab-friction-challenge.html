@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friction Challenge - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-red::-webkit-slider-thumb { background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+
+        #simCanvas { background-color: #0f172a; width: 100%; height: auto; border-radius: 1rem; }
+        
+        .surface-radio:checked + label { border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .shake-animation { animation: shake 0.5s infinite; }
+        
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500 tracking-tight">🛑 Friction Challenge</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Gaya Gesek Statis & Kinetis</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-sm font-bold text-indigo-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-indigo-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-indigo-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Simulasi</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Pilih Permukaan:</b> Es (Sangat Licin), Kayu (Sedang), atau Aspal (Kasar). Masing-masing punya nilai koefisien gesek (\(\mu\)) yang berbeda.</li>
+                    <li><b>Atur Massa & Gaya:</b> Sesuaikan beban benda dan kekuatan dorongan.</li>
+                    <li>Klik tombol <b class="text-red-400">DORONG (PUSH)</b>. Gaya dorong akan aktif selama <b>2 Detik</b> saja, setelah itu benda akan meluncur dan direm oleh gaya gesek lantai.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-yellow-400 mb-2">🎯 Mode Game (Challenge Mode)</h4>
+                    <p>Aktifkan toggle Mode Game. Akan muncul Zona Target (Warna Hijau) di jarak tertentu. Tugasmu adalah <b>memperkirakan gaya dorong</b> yang pas agar balok meluncur dan berhenti tepat di dalam zona tersebut!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-red-400 font-bold mb-2">Gesek Statis (\(f_s\)) - Saat Benda Diam</h3>
+                <p class="text-xs mb-2">Gaya yang menahan benda agar tidak bergerak. Benda baru akan bergerak jika gaya dorong (\(F\)) lebih besar dari nilai gesekan statis maksimumnya.</p>
+                <div class="font-mono text-red-300 text-xs bg-slate-950 p-2 rounded">\( f_{s(max)} = \mu_s \cdot N \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-blue-400 font-bold mb-2">Gesek Kinetis (\(f_k\)) - Saat Bergerak</h3>
+                <p class="text-xs mb-2">Gaya gesek yang bekerja saat benda sudah meluncur. Nilainya <b>selalu lebih kecil</b> dari gesek statis maksimal (\(\mu_k < \mu_s\)).</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded">\( f_k = \mu_k \cdot N \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden group">
+            
+            <div class="absolute top-4 left-4 z-10 flex gap-4">
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg text-center">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Status Gerak</p>
+                    <p class="font-mono text-sm text-white font-bold" id="hudState">DIAM</p>
+                </div>
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg text-center">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Gaya Dorong Sisa</p>
+                    <p class="font-mono text-xl text-red-400 font-bold" id="hudTimer">0.0s</p>
+                </div>
+            </div>
+
+            <div id="warningMsg" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-xl md:text-3xl font-black italic tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl text-center">
+                <span class="text-red-500 bg-slate-900/90 px-6 py-2 rounded-xl border-2 border-red-500 block shake-animation">DITAHAN GESEKAN STATIS!</span>
+                <span class="text-sm font-normal text-white bg-slate-800 px-4 py-1 rounded-b-xl">Gaya dorong kurang besar</span>
+            </div>
+
+            <div id="winMsg" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-4xl md:text-5xl font-black italic tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl text-green-400">
+                🎯 PERFECT STOP!
+            </div>
+
+            <canvas id="simCanvas" width="1000" height="300" class="w-full h-auto"></canvas>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-blue-500 p-5 shadow-lg lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-blue-400 flex items-center gap-2"><i data-lucide="sliders-horizontal"></i> Parameter Objek & Gaya</h3>
+                    <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700">
+                        <label class="text-xs font-bold text-slate-300 ml-2">Mode Game 🎯</label>
+                        <input type="checkbox" id="gameMode" onchange="toggleGameMode()" class="w-4 h-4 mr-2 accent-green-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300">Massa Benda (\(m\))</label>
+                            <span id="valMass" class="text-sm text-blue-400 font-mono font-bold bg-blue-500/10 px-2 py-0.5 rounded">10 kg</span>
+                        </div>
+                        <input type="range" id="inputMass" min="1" max="100" value="10" class="slider-blue" oninput="updateControls()">
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300">Gaya Dorong (\(F\))</label>
+                            <span id="valForce" class="text-sm text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded">100 N</span>
+                        </div>
+                        <input type="range" id="inputForce" min="0" max="1000" value="100" step="10" class="slider-red" oninput="updateControls()">
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-5 border-t border-slate-700">
+                    <label class="text-xs font-bold text-slate-400 mb-3 block uppercase tracking-wider">Jenis Permukaan (Koefisien Gesek)</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <input type="radio" name="surface" id="s1" value="ice" class="hidden surface-radio" onchange="updateControls()">
+                            <label for="s1" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-blue-400 transition bg-slate-900">
+                                <span class="text-2xl block mb-1">🧊</span>
+                                <span class="text-xs font-bold text-slate-300 block">Es Licin</span>
+                                <span class="text-[10px] text-slate-500 block font-mono">μs:0.1 | μk:0.05</span>
+                            </label>
+                        </div>
+                        <div>
+                            <input type="radio" name="surface" id="s2" value="wood" class="hidden surface-radio" checked onchange="updateControls()">
+                            <label for="s2" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-blue-400 transition bg-slate-900">
+                                <span class="text-2xl block mb-1">🪵</span>
+                                <span class="text-xs font-bold text-slate-300 block">Lantai Kayu</span>
+                                <span class="text-[10px] text-slate-500 block font-mono">μs:0.4 | μk:0.3</span>
+                            </label>
+                        </div>
+                        <div>
+                            <input type="radio" name="surface" id="s3" value="asphalt" class="hidden surface-radio" onchange="updateControls()">
+                            <label for="s3" class="block text-center p-2 border border-slate-600 rounded-lg cursor-pointer hover:border-blue-400 transition bg-slate-900">
+                                <span class="text-2xl block mb-1">🛣️</span>
+                                <span class="text-xs font-bold text-slate-300 block">Aspal Kasar</span>
+                                <span class="text-[10px] text-slate-500 block font-mono">μs:0.8 | μk:0.7</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col justify-center gap-4 relative overflow-hidden">
+                <h3 class="font-bold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="power"></i> Kontrol Simulator</h3>
+                
+                <button id="btnLaunch" onclick="startPush()" class="w-full bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-400 hover:to-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-red-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider">
+                    <i data-lucide="arrow-right-circle" width="24"></i> PUSH (2 DETIK)
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3 mt-2">
+                    <button onclick="resetLab()" class="col-span-2 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 text-sm">
+                        <i data-lucide="rotate-ccw" width="16"></i> Kembalikan Objek
+                    </button>
+                </div>
+
+                <div class="mt-2 bg-slate-900 p-3 rounded-lg border border-slate-700 text-xs text-slate-400">
+                    <b>Fisika Info:</b><br>
+                    Gaya Normal (N) = <span id="infoN" class="font-mono text-white">98 N</span><br>
+                    Batas f_statis = <span id="infoFs" class="font-mono text-red-400">39.2 N</span><br>
+                    Gaya f_kinetis = <span id="infoFk" class="font-mono text-blue-400">29.4 N</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Grafik Kecepatan (v-t)</h3>
+                <div class="w-full h-56"><canvas id="chartVel"></canvas></div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Dinamika Gaya Aktual (F-t)</h3>
+                <div class="w-full h-56"><canvas id="chartForce"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Data Telemetri</h3>
+                <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                    <i data-lucide="file-down" width="14"></i> Export PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-sm" id="dataTable">
+                    <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Waktu (s)</th>
+                            <th class="p-3 border-b border-slate-700 text-white">Posisi (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Kecepatan (m/s)</th>
+                            <th class="p-3 border-b border-slate-700 text-red-400">Gaya Dorong (N)</th>
+                            <th class="p-3 border-b border-slate-700 text-purple-400">Gesekan Aktual (N)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let isRunning = false;
+        let animFrame;
+        let t = 0;
+        let dt = 0.04; 
+        const g = 9.8;
+        
+        // Mode & Controls
+        let isGameMode = false;
+        let targetX = 0; // Posisi target dalam meter
+
+        let m = 10;
+        let fAppConfig = 100;
+        let surfaceType = 'wood';
+        let mu_s = 0.4;
+        let mu_k = 0.3;
+
+        // Physics State
+        let pushTimer = 0; // Berapa detik dorongan tersisa
+        let x = 0;
+        let v = 0;
+        let a = 0;
+        let fPushReal = 0;
+        let fFricReal = 0;
+
+        let dataHistory = [];
+        let lastLogTime = -1;
+
+        // View scale (1m = 10px visual)
+        let scaleX = 10;
+        let startPixelX = 50;
+
+        // --- CHARTS INITIALIZATION ---
+        let chartVel, chartForce;
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            
+            chartVel = new Chart(document.getElementById('chartVel').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Kecepatan (m/s)', borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', data: [], fill: true, pointRadius: 0, tension: 0.1, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { beginAtZero: true } } }
+            });
+
+            chartForce = new Chart(document.getElementById('chartForce').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'Dorong (N)', borderColor: '#ef4444', data: [], pointRadius: 0, tension: 0.1, borderWidth: 2, borderDash: [5, 5] },
+                    { label: 'Gesek Aktual (N)', borderColor: '#a855f7', data: [], pointRadius: 0, tension: 0.1, borderWidth: 2 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // --- CORE PHYSICS ---
+        function toggleGameMode() {
+            isGameMode = document.getElementById('gameMode').checked;
+            if(isGameMode) {
+                // Generate target antara 20m - 80m
+                targetX = Math.floor(Math.random() * 60) + 20;
+            }
+            resetLab();
+        }
+
+        function updateControls() {
+            if(isRunning) return;
+            m = parseFloat(document.getElementById('inputMass').value);
+            fAppConfig = parseFloat(document.getElementById('inputForce').value);
+            surfaceType = document.querySelector('input[name="surface"]:checked').value;
+            
+            // Set Koefisien berdasarkan permukaan
+            if(surfaceType === 'ice') { mu_s = 0.1; mu_k = 0.05; }
+            else if(surfaceType === 'wood') { mu_s = 0.4; mu_k = 0.3; }
+            else if(surfaceType === 'asphalt') { mu_s = 0.8; mu_k = 0.7; }
+
+            document.getElementById('valMass').innerText = m + " kg";
+            document.getElementById('valForce').innerText = fAppConfig + " N";
+
+            let N = m * g;
+            let maxFs = mu_s * N;
+            let fk = mu_k * N;
+
+            document.getElementById('infoN').innerText = N.toFixed(1) + " N";
+            document.getElementById('infoFs').innerText = maxFs.toFixed(1) + " N";
+            document.getElementById('infoFk').innerText = fk.toFixed(1) + " N";
+
+            drawArena();
+        }
+
+        function updatePhysics() {
+            t += dt;
+            
+            let N = m * g;
+            let maxFs = mu_s * N;
+            let fk = mu_k * N;
+
+            // Timer Dorongan
+            if(pushTimer > 0) {
+                pushTimer -= dt;
+                fPushReal = fAppConfig;
+                if(pushTimer <= 0) { pushTimer = 0; fPushReal = 0; }
+            } else {
+                fPushReal = 0;
+            }
+
+            document.getElementById('hudTimer').innerText = pushTimer.toFixed(1) + "s";
+
+            // LOGIKA GAYA GESEK (JANTUNGNYA SIMULASI INI)
+            if (Math.abs(v) < 0.05) {
+                // Benda DIAM
+                v = 0; // Fix floating point
+                if (fPushReal <= maxFs) {
+                    // Gaya dorong TIDAK CUKUP
+                    a = 0;
+                    fFricReal = fPushReal; // Gesek statis menyeimbangkan dorongan
+                    
+                    if(fPushReal > 0 && t < 0.2) {
+                        // Tampilkan Warning hanya di awal push
+                        document.getElementById('warningMsg').classList.remove('opacity-0');
+                    }
+                } else {
+                    // Gaya dorong JEBOL gesek statis
+                    document.getElementById('warningMsg').classList.add('opacity-0');
+                    fFricReal = fk; // Berubah jadi gesek kinetis
+                    a = (fPushReal - fFricReal) / m;
+                }
+            } else {
+                // Benda BERGERAK
+                document.getElementById('warningMsg').classList.add('opacity-0');
+                fFricReal = fk;
+                
+                // Jika sedang maju (v > 0), gesekan narik ke belakang (-fk)
+                a = (fPushReal - fFricReal) / m;
+            }
+
+            v += a * dt;
+            
+            // Cek jika benda berhenti karena direm gesekan setelah dorongan habis
+            if (fPushReal === 0 && v < 0) {
+                v = 0; a = 0; fFricReal = 0;
+                finishSim();
+            }
+
+            x += v * dt;
+            
+            // Update Text Status
+            if(v === 0) document.getElementById('hudState').innerText = "DIAM";
+            else if(pushTimer > 0) document.getElementById('hudState').innerText = "DIDORONG (a = "+a.toFixed(1)+")";
+            else document.getElementById('hudState').innerText = "MELUNCUR BEBAS (Melambat)";
+            
+            // Camera Panning (Biar layarnya ngikutin balok kalau kejauhan)
+            if(x * scaleX > canvas.width - 200) {
+                startPixelX = canvas.width - 200 - (x * scaleX);
+            }
+        }
+
+        // --- RENDER VISUAL ---
+        const groundY = 220;
+
+        function drawArrow(startX, startY, lenN, color, text, isFric = false) {
+            if(Math.abs(lenN) < 1) return; 
+            
+            // Konversi Gaya (N) ke Pixel (Maksimal 150px biar gak kepanjangan)
+            let maxDraw = 150;
+            let ratio = maxDraw / 1000; // Asumsi 1000N = 150px
+            let visualLen = lenN * ratio;
+            
+            if(isFric) visualLen = -Math.abs(visualLen); // Gesekan selalu ke kiri
+            
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4;
+            ctx.moveTo(startX, startY); ctx.lineTo(startX + visualLen, startY); ctx.stroke();
+            
+            ctx.beginPath();
+            if(visualLen > 0) {
+                ctx.moveTo(startX + visualLen + 2, startY);
+                ctx.lineTo(startX + visualLen - 10, startY - 6);
+                ctx.lineTo(startX + visualLen - 10, startY + 6);
+            } else {
+                ctx.moveTo(startX + visualLen - 2, startY);
+                ctx.lineTo(startX + visualLen + 10, startY - 6);
+                ctx.lineTo(startX + visualLen + 10, startY + 6);
+            }
+            ctx.fill();
+
+            ctx.font = "bold 12px sans-serif";
+            ctx.fillText(text + ` (${lenN.toFixed(0)}N)`, startX + visualLen/2 - 30, startY - 10);
+        }
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Surface Background
+            let floorColor = '#475569';
+            if(surfaceType === 'ice') floorColor = '#bae6fd'; // Biru muda
+            else if(surfaceType === 'wood') floorColor = '#92400e'; // Coklat
+            else if(surfaceType === 'asphalt') floorColor = '#334155'; // Abu gelap
+            
+            ctx.fillStyle = floorColor;
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // Texture Lines untuk memberi ilusi gerak
+            ctx.strokeStyle = '#ffffff20'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            let bgOffset = startPixelX % 100; // Bergerak bersama kamera
+            for(let i=bgOffset; i<canvas.width; i+=100) {
+                ctx.moveTo(i, groundY); ctx.lineTo(i - 20, canvas.height);
+            }
+            ctx.stroke();
+
+            // Draw Distance Markers (Meteran Tanah)
+            ctx.fillStyle = '#cbd5e1'; ctx.font = '10px monospace';
+            for(let i=0; i<=200; i+=10) {
+                let px = startPixelX + (i * scaleX);
+                if(px > -50 && px < canvas.width + 50) {
+                    ctx.fillRect(px, groundY, 2, 8);
+                    ctx.fillText(i + 'm', px-5, groundY + 20);
+                }
+            }
+
+            // Draw Target Zone (Game Mode)
+            if(isGameMode) {
+                let tx = startPixelX + (targetX * scaleX);
+                // Kotak Hijau Transparan
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+                ctx.fillRect(tx - 20, groundY - 100, 40, 100);
+                ctx.fillStyle = '#22c55e'; ctx.font = '20px Arial';
+                ctx.fillText('🏁', tx - 10, groundY - 110);
+            }
+
+            // --- DRAW OBJECT (BOX) ---
+            let boxPx = startPixelX + (x * scaleX);
+            let boxSize = Math.max(30, 20 + (m * 0.4)); // Ukuran membesar berdasar massa
+            
+            // Jika ditahan gesekan, beri efek merah bergetar
+            if(fPushReal > 0 && Math.abs(v) < 0.05) ctx.strokeStyle = '#ef4444';
+            else ctx.strokeStyle = '#94a3b8';
+            
+            ctx.fillStyle = '#1e293b'; 
+            ctx.fillRect(boxPx, groundY - boxSize, boxSize, boxSize);
+            ctx.lineWidth = 3; ctx.strokeRect(boxPx, groundY - boxSize, boxSize, boxSize);
+            
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(m+'kg', boxPx + 5, groundY - boxSize/2 + 5);
+
+            // --- DRAW FORCE VECTORS ---
+            let centerBoxY = groundY - boxSize/2;
+            
+            // Push Force (Kanan)
+            if (fPushReal > 0) drawArrow(boxPx + boxSize, centerBoxY, fPushReal, '#ef4444', 'Dorong');
+            
+            // Friction Force (Kiri)
+            if (fFricReal > 0) drawArrow(boxPx, groundY - 10, fFricReal, '#a855f7', 'Gesek', true);
+        }
+
+        // --- ANIMATION & DATA LOGGING ---
+        function animate() {
+            if(!isRunning) return;
+            
+            updatePhysics();
+            drawArena();
+
+            // Log Data tiap 0.5 detik
+            if(t - lastLogTime >= 0.5) {
+                const tStr = t.toFixed(1);
+                
+                chartVel.data.labels.push(tStr); chartVel.data.datasets[0].data.push(v.toFixed(2)); chartVel.update();
+                chartForce.data.labels.push(tStr); 
+                chartForce.data.datasets[0].data.push(fPushReal.toFixed(1)); 
+                chartForce.data.datasets[1].data.push(fFricReal.toFixed(1)); 
+                chartForce.update();
+                
+                const row = `<tr>
+                    <td class="p-2 border-b border-slate-700/50">${tStr}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-white">${x.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-blue-400">${v.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-red-400">${fPushReal.toFixed(0)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-purple-400">${fFricReal.toFixed(0)}</td>
+                </tr>`;
+                document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+                dataHistory.push([tStr, x.toFixed(2), v.toFixed(2), fPushReal.toFixed(0), fFricReal.toFixed(0)]);
+                
+                lastLogTime = t;
+            }
+
+            if(isRunning) animFrame = requestAnimationFrame(animate);
+        }
+
+        // --- BUTTON CONTROLS ---
+        function startPush() {
+            if(isRunning) return;
+            
+            // Reset state
+            document.getElementById('tableBody').innerHTML = ''; dataHistory = [];
+            chartVel.data.labels = []; chartVel.data.datasets[0].data = [];
+            chartForce.data.labels = []; chartForce.data.datasets[0].data = []; chartForce.data.datasets[1].data = [];
+            document.getElementById('warningMsg').classList.add('opacity-0');
+            document.getElementById('winMsg').classList.add('opacity-0');
+            
+            t = 0; lastLogTime = -1;
+            x = 0; v = 0; a = 0;
+            startPixelX = 50; // Reset camera
+            
+            pushTimer = 2.0; // Waktu dorong 2 detik
+            isRunning = true;
+            
+            document.getElementById('btnLaunch').disabled = true;
+            document.getElementById('btnLaunch').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            animFrame = requestAnimationFrame(animate);
+        }
+
+        function finishSim() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('hudState').innerText = "BERHENTI TOTAL";
+            
+            if(isGameMode) {
+                let diff = Math.abs(x - targetX);
+                if(diff <= 2.0) { // Toleransi 2 meter
+                    document.getElementById('winMsg').classList.remove('opacity-0');
+                } else if(x < targetX) {
+                    alert(`Yah, kurang jauh! Kamu kurang ${(targetX - x).toFixed(1)} meter lagi. Coba dorong lebih kuat atau kurangi massanya.`);
+                } else {
+                    alert(`Kebablasan! Kamu kelewatan ${(x - targetX).toFixed(1)} meter. Gaya dorongmu terlalu besar!`);
+                }
+            }
+        }
+
+        function resetLab() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            t = 0; x = 0; v = 0; pushTimer = 0; startPixelX = 50;
+            document.getElementById('warningMsg').classList.add('opacity-0');
+            document.getElementById('winMsg').classList.add('opacity-0');
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('hudTimer').innerText = "0.0s";
+            
+            updateControls();
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Jalankan simulasi terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Gaya Gesek", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Permukaan Benda : ${surfaceType.toUpperCase()} (us: ${mu_s}, uk: ${mu_k})`, 14, 30);
+            doc.text(`Massa Benda (m) : ${m} kg`, 14, 36);
+            doc.text(`Gaya Dorong (F) : ${fAppConfig} N (Diberikan selama 2 detik)`, 14, 42);
+            doc.text(`Jarak Total     : ${x.toFixed(2)} m`, 14, 48);
+            
+            doc.autoTable({ startY: 55, head: [['Waktu (s)', 'Posisi (m)', 'Kecepatan (m/s)', 'F Dorong (N)', 'F Gesek (N)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            doc.save("Laporan_Gaya_Gesek.pdf");
+        }
+
+        // Init App
+        initCharts();
+        updateControls();
+    </script>
+</body>
+</html>

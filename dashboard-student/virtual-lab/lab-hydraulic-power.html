@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydraulic Power - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #eab308;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-yellow::-webkit-slider-thumb { border-color: #eab308; background: #eab308; box-shadow: 0 0 15px #eab308; }
+        .slider-blue::-webkit-slider-thumb { border-color: #3b82f6; background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+        .slider-red::-webkit-slider-thumb { border-color: #ef4444; background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); width: 100%; height: auto; border-radius: 1rem; }
+        
+        .glass-hud { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .shake-animation { animation: shake 0.3s infinite; }
+        @keyframes shake {
+            0% { transform: translateY(0); }
+            25% { transform: translateY(-2px); }
+            50% { transform: translateY(2px); }
+            75% { transform: translateY(-2px); }
+            100% { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-600 tracking-tight">🏗️ Hydraulic Power</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Hukum Pascal</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-yellow-600/20 hover:bg-yellow-600/40 border border-yellow-500/30 rounded-lg text-sm font-bold text-yellow-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-yellow-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-yellow-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Atur Luas Penampang:</b> Geser slider untuk memperkecil/memperbesar luas pipa input (\(A_1\)) dan pipa output (\(A_2\)).</li>
+                    <li><b>Pilih Sumber Gaya:</b> Kamu bisa memompa secara manual (Tenaga Manusia), atau menggunakan bantuan Kompresor / Mesin Pompa untuk hasil yang lebih kuat.</li>
+                    <li>Klik tombol <b class="text-yellow-400">APPLY FORCE</b>. Piston kecil akan menekan fluida, dan tekanannya diteruskan untuk mengangkat piston besar (\(F_2\)).</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-emerald-400 mb-2">🚗 Mode Dongkrak (Challenge Mode)</h4>
+                    <p>Aktifkan mode ini untuk menempatkan sebuah Mobil seberat <b>15.000 N</b> di atas piston besar. Cobalah mengangkat mobil ini hanya menggunakan <b>Tenaga Manusia (Maks 500 N)</b> dengan mengatur rasio pipa yang ekstrem, atau permudah pekerjaanmu dengan <b>Mesin Kompresor</b>!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-yellow-400 font-bold mb-2">Hukum Pascal</h3>
+                <p class="text-xs mb-2">Tekanan yang diberikan pada zat cair dalam ruang tertutup diteruskan sama besar ke segala arah.</p>
+                <div class="font-mono text-yellow-300 text-sm bg-slate-950 p-2 rounded text-center">\( P = \frac{F_1}{A_1} = \frac{F_2}{A_2} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-blue-400 font-bold mb-2">Gaya Output & Jarak (Konservasi Volume)</h3>
+                <p class="text-xs mb-2">Gaya output (\(F_2\)) bisa dilipatgandakan dengan memperbesar \(A_2\), TAPI jarak naiknya (\(d_2\)) akan menjadi sangat kecil.</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded">\( F_2 = F_1 \times \left( \frac{A_2}{A_1} \right) \)<br>\( d_2 = d_1 \times \left( \frac{A_1}{A_2} \right) \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden h-[450px]">
+                
+                <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
+                    <div class="glass-hud px-6 py-2 rounded-xl text-center border-b-2 border-b-yellow-500 shadow-lg shadow-yellow-900/20">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tekanan Sistem (P)</p>
+                        <p class="font-mono text-2xl text-yellow-400 font-black drop-shadow-md" id="hudPressure">0 <span class="text-sm">Pa</span></p>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-6 left-6 z-20 glass-hud px-4 py-2 rounded-lg border-l-4 border-l-blue-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Input F₁ (\(d_1\) turun)</p>
+                    <p class="font-mono text-lg text-blue-400 font-bold" id="hudF1">0 N</p>
+                </div>
+                <div class="absolute bottom-6 right-6 z-20 glass-hud px-4 py-2 rounded-lg border-r-4 border-r-red-500 text-right">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Output F₂ (\(d_2\) naik)</p>
+                    <p class="font-mono text-lg text-red-400 font-bold" id="hudF2">0 N</p>
+                </div>
+
+                <div id="alertMsg" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-2xl md:text-3xl font-black italic tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl text-center">
+                    <span class="text-red-500 bg-slate-900/90 px-6 py-2 rounded-xl border-2 border-red-500 block">GAYA OUTPUT TIDAK CUKUP!</span>
+                </div>
+                <div id="successMsg" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-2xl md:text-4xl font-black italic tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl text-center">
+                    <span class="text-emerald-400 bg-slate-900/90 px-8 py-3 rounded-xl border-2 border-emerald-400 block">MOBIL TERANGKAT! 🚙</span>
+                </div>
+
+                <canvas id="simCanvas" width="800" height="450" class="w-full h-full"></canvas>
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-yellow-500 p-5 shadow-lg flex-1">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-yellow-400 flex items-center gap-2"><i data-lucide="sliders"></i> Setelan Hidrolik</h3>
+                        <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700">
+                            <label class="text-[10px] font-bold text-slate-300 ml-2 uppercase">Angkat Mobil 🚗</label>
+                            <input type="checkbox" id="toggleChallenge" onchange="toggleMode()" class="w-4 h-4 mr-2 accent-emerald-500 cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Luas Pipa Kecil (\(A_1\))</label>
+                                <span id="valA1" class="text-sm text-blue-400 font-mono font-bold">0.010 m²</span>
+                            </div>
+                            <input type="range" id="inputA1" min="0.001" max="0.05" value="0.01" step="0.001" class="slider-blue" oninput="updateControls()">
+                            <p class="text-[9px] text-slate-500 mt-1 text-right">Rentang: 0.001 - 0.05 m²</p>
+                        </div>
+                        
+                        <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Luas Pipa Besar (\(A_2\))</label>
+                                <span id="valA2" class="text-sm text-red-400 font-mono font-bold">0.10 m²</span>
+                            </div>
+                            <input type="range" id="inputA2" min="0.01" max="0.5" value="0.1" step="0.01" class="slider-red" oninput="updateControls()">
+                            <p class="text-[9px] text-slate-500 mt-1 text-right">Rentang: 0.01 - 0.50 m²</p>
+                        </div>
+
+                        <div class="bg-slate-900 p-4 rounded-xl border-l-2 border-l-yellow-500 mt-2">
+                            <div class="flex flex-col mb-3 gap-2">
+                                <label class="text-xs font-bold text-slate-400 uppercase">Sumber Gaya Input</label>
+                                <select id="forceSource" onchange="changeForceSource()" class="w-full bg-slate-800 text-sm text-yellow-400 border border-slate-600 rounded-lg px-2 py-2 outline-none focus:border-yellow-400 font-bold">
+                                    <option value="500">💪 Tenaga Manusia (Maks 500 N)</option>
+                                    <option value="5000">⚙️ Kompresor Udara (Maks 5.000 N)</option>
+                                    <option value="20000">🏭 Mesin Pompa Elektrik (Maks 20.000 N)</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-between mb-2 items-end">
+                                <label class="text-sm font-bold text-slate-300">Gaya Terapkan (\(F_1\))</label>
+                                <span id="valF1" class="text-sm text-yellow-400 font-mono font-bold bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">100 N</span>
+                            </div>
+                            <input type="range" id="inputF1" min="10" max="500" value="100" step="10" class="slider-yellow w-full" oninput="updateControls()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg flex flex-col justify-center gap-3">
+                    <button id="btnPush" onclick="startPush()" class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-white font-black py-4 rounded-xl shadow-lg shadow-yellow-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider">
+                        <i data-lucide="arrow-down-square" width="24"></i> APPLY FORCE (\(F_1\))
+                    </button>
+                    
+                    <button id="btnReset" onclick="resetPistons()" disabled class="w-full bg-slate-700 text-slate-400 font-bold py-2.5 rounded-xl hover:bg-slate-600 hover:text-white transition flex justify-center items-center gap-2 text-sm opacity-50 cursor-not-allowed">
+                        <i data-lucide="rotate-ccw" width="16"></i> Kembalikan Piston
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <h3 class="text-sm font-bold text-slate-300 mb-4 text-center border-b border-slate-700 pb-2">Perbandingan Gaya (\(F_1\) vs \(F_2\))</h3>
+                
+                <div class="relative flex-1 bg-slate-900 rounded-xl border border-slate-700 flex justify-around items-end p-4 min-h-[200px]">
+                    <div class="w-20 bg-slate-800 rounded-t-lg relative flex justify-center items-end h-full">
+                        <div id="barF1" class="w-full bg-blue-500 rounded-t-lg transition-all duration-300" style="height: 10%;"></div>
+                        <span class="absolute -top-6 text-xs font-bold text-blue-400">Input F₁</span>
+                        <span id="barValF1" class="absolute bottom-2 text-xs font-bold text-white z-10 text-center w-full px-1 drop-shadow-md">100 N</span>
+                    </div>
+                    
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center bg-slate-900/80 px-3 py-2 rounded-lg border border-slate-700 backdrop-blur">
+                        <p class="text-[10px] text-slate-400 uppercase">Faktor Pengali (Keuntungan Mekanis)</p>
+                        <p id="hudMultiplier" class="text-2xl font-black text-emerald-400">10x</p>
+                    </div>
+
+                    <div class="w-20 bg-slate-800 rounded-t-lg relative flex justify-center items-end h-full">
+                        <div id="barF2" class="w-full bg-red-500 rounded-t-lg transition-all duration-300" style="height: 100%;"></div>
+                        <span class="absolute -top-6 text-xs font-bold text-red-400">Output F₂</span>
+                        <span id="barValF2" class="absolute bottom-2 text-xs font-bold text-white z-10 text-center w-full px-1 drop-shadow-md">1000 N</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Data Pengamatan</h3>
+                    <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                        <i data-lucide="file-down" width="14"></i> Export PDF
+                    </button>
+                </div>
+                <div class="overflow-y-auto flex-1 max-h-[220px] custom-scrollbar border border-slate-700 rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 border-b border-slate-700 text-blue-400">A₁ (m²)</th>
+                                <th class="p-3 border-b border-slate-700 text-red-400">A₂ (m²)</th>
+                                <th class="p-3 border-b border-slate-700 text-yellow-400">Tekanan P (Pa)</th>
+                                <th class="p-3 border-b border-slate-700 text-blue-400">F₁ (N)</th>
+                                <th class="p-3 border-b border-slate-700 text-red-400">F₂ Output (N)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">Belum ada eksperimen. Klik APPLY FORCE.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // Physics variables
+        let a1 = 0.01; // m2
+        let a2 = 0.1;  // m2
+        let f1 = 100;  // N
+        
+        let pressure = 0; // Pa
+        let f2 = 0; // N
+        
+        // Challenge Mode
+        let isChallenge = false;
+        const CAR_WEIGHT = 15000; // N (1.5 Ton)
+
+        // Visual Layout parameters
+        const baseCylynderY = 150;
+        const pipeY = 320;
+        
+        // Displacement (Jarak turun piston 1)
+        const maxD1Visual = 60; // pixel
+        let currentD1Visual = 0; 
+        let currentD2Visual = 0; 
+
+        let isRunning = false;
+        let isPushed = false;
+        let dataHistory = [];
+        let recordCount = 0;
+
+        // Visual Widths base map
+        function getVisualWidth(area) {
+            return 30 + (area / 0.5) * 150;
+        }
+
+        // --- CORE LOGIC ---
+        function toggleMode() {
+            isChallenge = document.getElementById('toggleChallenge').checked;
+            resetPistons();
+            updateControls();
+        }
+
+        // FUNGSI BARU: Ganti Sumber Gaya Input
+        function changeForceSource() {
+            if(isRunning) return;
+            
+            let maxF = parseInt(document.getElementById('forceSource').value);
+            let slider = document.getElementById('inputF1');
+            
+            slider.max = maxF;
+            
+            // Sesuaikan interval slider agar nyaman ditarik
+            if(maxF === 500) slider.step = 10;
+            else if(maxF === 5000) slider.step = 100;
+            else slider.step = 500; // 20.000 N
+
+            // Turunkan value jika nilainya melebihi max yang baru
+            if(parseInt(slider.value) > maxF) {
+                slider.value = maxF;
+            }
+            
+            updateControls();
+        }
+
+        function updateControls() {
+            if(isRunning) return; 
+            
+            a1 = parseFloat(document.getElementById('inputA1').value);
+            a2 = parseFloat(document.getElementById('inputA2').value);
+            f1 = parseFloat(document.getElementById('inputF1').value);
+
+            document.getElementById('valA1').innerText = a1.toFixed(3) + " m²";
+            document.getElementById('valA2').innerText = a2.toFixed(2) + " m²";
+            document.getElementById('valF1').innerText = f1.toLocaleString() + " N";
+
+            // Hitung Fisika
+            pressure = f1 / a1;
+            f2 = pressure * a2;
+            
+            let multiplier = a2 / a1;
+
+            // Update Text UI
+            document.getElementById('hudPressure').innerHTML = pressure.toLocaleString(undefined, {maximumFractionDigits:0}) + ' <span class="text-sm">Pa</span>';
+            document.getElementById('hudF1').innerText = f1.toLocaleString() + " N";
+            document.getElementById('hudF2').innerText = f2.toLocaleString(undefined, {maximumFractionDigits:0}) + " N";
+            document.getElementById('hudMultiplier').innerText = multiplier.toFixed(1) + "x";
+
+            // Update Bar Chart Proporsional
+            // Agar bar F1 tidak hilang jika nilainya sangat kecil dibanding F2, kita pastikan minimal tingginya 5%
+            let maxForceScale = Math.max(f1, f2);
+            let pct1 = (f1 / maxForceScale) * 100;
+            let pct2 = (f2 / maxForceScale) * 100;
+            
+            document.getElementById('barF1').style.height = `${Math.max(5, pct1)}%`;
+            document.getElementById('barF2').style.height = `${Math.max(5, pct2)}%`;
+            
+            // Format format teks ke k (ribu) jika kepanjangan
+            document.getElementById('barValF1').innerText = (f1 >= 1000 ? (f1/1000).toFixed(1)+'k' : f1.toFixed(0)) + " N";
+            document.getElementById('barValF2').innerText = (f2 >= 1000 ? (f2/1000).toFixed(1)+'k' : f2.toFixed(0)) + " N";
+
+            drawSystem();
+        }
+
+        // --- RENDER VISUAL ---
+        function drawSystem() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let w1 = getVisualWidth(a1);
+            let w2 = getVisualWidth(a2);
+            
+            let x1 = 150 - w1/2; 
+            let x2 = 600 - w2/2; 
+
+            // 1. Draw Pipa Penghubung Bawah
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.8)'; // Fluida Cyan
+            ctx.fillRect(150, pipeY, 450, 40); 
+            
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(x1 + w1, pipeY); ctx.lineTo(x2, pipeY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x1 + w1, pipeY + 40); ctx.lineTo(x2, pipeY + 40); ctx.stroke();
+
+            // 2. Draw Fluida di Silinder
+            let fluidH1 = (pipeY - baseCylynderY) - currentD1Visual;
+            let fluidH2 = (pipeY - baseCylynderY) + currentD2Visual;
+            
+            ctx.fillRect(x1, pipeY - fluidH1, w1, fluidH1);
+            ctx.fillRect(x2, pipeY - fluidH2, w2, fluidH2);
+
+            // 3. Draw Silinder
+            ctx.beginPath(); ctx.moveTo(x1, baseCylynderY - 50); ctx.lineTo(x1, pipeY + 40); ctx.lineTo(x1 + w1, pipeY + 40); ctx.lineTo(x1 + w1, baseCylynderY - 50); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, baseCylynderY - 50); ctx.lineTo(x2, pipeY + 40); ctx.lineTo(x2 + w2, pipeY + 40); ctx.lineTo(x2 + w2, baseCylynderY - 50); ctx.stroke();
+
+            // 4. Draw Pistons (Plate)
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(x1, pipeY - fluidH1 - 15, w1, 15); 
+            ctx.fillRect(x2, pipeY - fluidH2 - 15, w2, 15); 
+
+            // Tiang Piston
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(150 - 5, pipeY - fluidH1 - 65, 10, 50);
+            ctx.fillRect(600 - 5, pipeY - fluidH2 - 65, 10, 50);
+
+            // 5. Draw Arrows & Objects
+            if (currentD1Visual > 0 || isPushed) {
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.moveTo(150 - 15, pipeY - fluidH1 - 90); ctx.lineTo(150 + 15, pipeY - fluidH1 - 90); ctx.lineTo(150, pipeY - fluidH1 - 70);
+                ctx.fill();
+            }
+
+            ctx.font = '50px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            if(isChallenge) {
+                ctx.fillText('🚙', 600, pipeY - fluidH2 - 65);
+                ctx.fillStyle = '#ef4444'; ctx.font = 'bold 14px monospace';
+                ctx.fillText(`W = 15,000 N`, 600, pipeY - fluidH2 - 110);
+            } else {
+                ctx.fillText('📦', 600, pipeY - fluidH2 - 65);
+            }
+        }
+
+        // --- ANIMATION LOOP ---
+        let animProgress = 0;
+        let failVibrate = 0;
+
+        function animatePush() {
+            if(!isRunning) return;
+
+            // Jika GAGAL Angkat
+            if(isChallenge && f2 < CAR_WEIGHT) {
+                failVibrate++;
+                if(failVibrate < 15) {
+                    document.getElementById('alertMsg').classList.remove('opacity-0');
+                    document.getElementById('simCanvas').classList.add('shake-animation');
+                    animFrame = requestAnimationFrame(animatePush);
+                } else {
+                    document.getElementById('simCanvas').classList.remove('shake-animation');
+                    stopAnim(); 
+                }
+                return;
+            }
+
+            // SUKSES Mendorong
+            animProgress += 0.05;
+            if(animProgress >= 1.0) animProgress = 1.0;
+
+            currentD1Visual = maxD1Visual * animProgress;
+            currentD2Visual = currentD1Visual * (a1 / a2); 
+
+            drawSystem();
+
+            if(animProgress < 1.0) {
+                animFrame = requestAnimationFrame(animatePush);
+            } else {
+                stopAnim();
+                if(isChallenge && f2 >= CAR_WEIGHT) {
+                    document.getElementById('successMsg').classList.remove('opacity-0');
+                }
+            }
+        }
+
+        function stopAnim() {
+            isRunning = false;
+            
+            const btnR = document.getElementById('btnReset');
+            btnR.disabled = false; btnR.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnR.classList.add('text-white', 'hover:bg-slate-600');
+
+            // Log Data ke Tabel
+            recordCount++;
+            if(recordCount === 1) document.getElementById('tableBody').innerHTML = ''; 
+            
+            let fSourceName = document.getElementById('forceSource').options[document.getElementById('forceSource').selectedIndex].text.split(' ')[1];
+            
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400 font-bold">${a1.toFixed(3)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400 font-bold">${a2.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-yellow-400 font-mono">${pressure.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400"><b>${f1.toLocaleString()}</b> <span class="text-[10px] text-slate-500">(${fSourceName})</span></td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400 font-black">${f2.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([a1.toFixed(3), a2.toFixed(2), pressure.toFixed(0), f1, f2.toFixed(0)]);
+        }
+
+        // --- BUTTON ACTIONS ---
+        function startPush() {
+            if(isRunning || isPushed) return;
+            
+            isRunning = true;
+            isPushed = true;
+            animProgress = 0;
+            failVibrate = 0;
+            
+            document.getElementById('btnPush').disabled = true;
+            document.getElementById('btnPush').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            document.getElementById('inputA1').disabled = true;
+            document.getElementById('inputA2').disabled = true;
+            document.getElementById('inputF1').disabled = true;
+            document.getElementById('forceSource').disabled = true;
+
+            animFrame = requestAnimationFrame(animatePush);
+        }
+
+        function resetPistons() {
+            cancelAnimationFrame(animFrame);
+            isRunning = false;
+            isPushed = false;
+            currentD1Visual = 0;
+            currentD2Visual = 0;
+            
+            document.getElementById('alertMsg').classList.add('opacity-0');
+            document.getElementById('successMsg').classList.add('opacity-0');
+            
+            document.getElementById('btnPush').disabled = false;
+            document.getElementById('btnPush').classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            const btnR = document.getElementById('btnReset');
+            btnR.disabled = true; btnR.classList.add('opacity-50', 'cursor-not-allowed');
+            btnR.classList.remove('text-white', 'hover:bg-slate-600');
+
+            document.getElementById('inputA1').disabled = false;
+            document.getElementById('inputA2').disabled = false;
+            document.getElementById('inputF1').disabled = false;
+            document.getElementById('forceSource').disabled = false;
+
+            drawSystem();
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Lakukan simulasi terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Hukum Pascal", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Sistem Hidrolik membuktikan bahwa fluida meneruskan tekanan secara merata.", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Luas A1 (m2)', 'Luas A2 (m2)', 'Tekanan (Pa)', 'Input F1 (N)', 'Output F2 (N)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            let finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFont("helvetica", "italic");
+            doc.text("Kesimpulan: Memperbesar rasio A2/A1 akan melipatgandakan gaya output (Keuntungan Mekanis).", 14, finalY);
+
+            doc.save("Laporan_Hukum_Pascal.pdf");
+        }
+
+        // Init App
+        changeForceSource();
+    </script>
+</body>
+</html>

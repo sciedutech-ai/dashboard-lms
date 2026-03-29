@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Master - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        .neon-text-orange { text-shadow: 0 0 10px rgba(249, 115, 22, 0.8); }
+        .neon-text-blue { text-shadow: 0 0 10px rgba(59, 130, 246, 0.8); }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-orange::-webkit-slider-thumb { background: #f97316; box-shadow: 0 0 15px #f97316; }
+        .slider-blue::-webkit-slider-thumb { background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+
+        /* Canvas styling for crisp rendering */
+        #simCanvas { background: linear-gradient(to bottom, #0f172a 0%, #1e293b 100%); width: 100%; height: auto; border-radius: 1rem; }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 tracking-tight">🎯 Projectile Master</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Gerak Parabola</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-sm font-bold text-indigo-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-indigo-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto">
+            <h3 class="text-indigo-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Penggunaan Simulasi</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+                <ol class="list-decimal list-inside space-y-2">
+                    <li><b>Atur Kecepatan Awal (\(v_0\))</b> dan <b>Sudut Elevasi (\(\theta\))</b> pada panel kontrol.</li>
+                    <li>Pilih lokasi gravitasi (Bumi, Bulan, atau Jupiter) untuk melihat pengaruh tarikan gravitasi.</li>
+                    <li>Aktifkan <b>Mode Target</b> jika ingin tantangan menembak sasaran secara presisi.</li>
+                </ol>
+                <ol class="list-decimal list-inside space-y-2" start="4">
+                    <li>Klik tombol <b class="text-orange-400">LAUNCH (TEMBAK)</b>.</li>
+                    <li>Perhatikan bagaimana sudut proyektil (meriam/bola) berputar menukik ke bawah saat jatuh.</li>
+                    <li>Gunakan tombol <b>Simpan Jejak (Compare)</b> untuk membandingkan lintasan tembakan pertama dan kedua!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div>
+                <h3 class="text-orange-400 font-bold text-base mb-2">Komponen X (GLB)</h3>
+                <div class="bg-slate-900 p-3 rounded-lg font-mono text-orange-300 border border-slate-700 text-xs">
+                    \( v_x = v_0 \cos(\theta) \)<br>\( x = v_x \cdot t \)
+                </div>
+            </div>
+            <div>
+                <h3 class="text-blue-400 font-bold text-base mb-2">Komponen Y (GLBB)</h3>
+                <div class="bg-slate-900 p-3 rounded-lg font-mono text-blue-300 border border-slate-700 text-xs">
+                    \( v_y = v_0 \sin(\theta) - g \cdot t \)<br>\( y = v_0 \sin(\theta) \cdot t - \frac{1}{2} g t^2 \)
+                </div>
+            </div>
+            <div>
+                <h3 class="text-green-400 font-bold text-base mb-2">Titik Maksimum</h3>
+                <div class="bg-slate-900 p-3 rounded-lg font-mono text-green-300 border border-slate-700 text-xs">
+                    \( H_{max} = \frac{v_0^2 \sin^2(\theta)}{2g} \)<br>\( R_{max} = \frac{v_0^2 \sin(2\theta)}{g} \)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-4 left-4 z-10 flex gap-4">
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Waktu (t)</p>
+                    <p class="font-mono text-xl text-white font-bold" id="hudTime">0.00 s</p>
+                </div>
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Posisi (X, Y)</p>
+                    <p class="font-mono text-xl text-orange-400 font-bold" id="hudPos">0.0, 0.0 m</p>
+                </div>
+                <div class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg hidden md:block">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Kecepatan (Vx, Vy)</p>
+                    <p class="font-mono text-xl text-blue-400 font-bold" id="hudVel">0.0, 0.0 m/s</p>
+                </div>
+            </div>
+
+            <div id="gameMessage" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-4xl md:text-6xl font-black italic tracking-widest opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl">
+                HIT! 🎯
+            </div>
+
+            <canvas id="simCanvas" width="1000" height="400" class="w-full h-auto"></canvas>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-orange-500 p-5 shadow-lg lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-orange-400 flex items-center gap-2"><i data-lucide="crosshair"></i> Parameter Peluncuran</h3>
+                    <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700">
+                        <label class="text-xs font-bold text-slate-300 ml-2">Mode Target 🎯</label>
+                        <input type="checkbox" id="targetMode" onchange="toggleTargetMode()" class="w-4 h-4 mr-2 accent-orange-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300">Kecepatan Awal (\(v_0\))</label>
+                            <span id="valV0" class="text-sm text-orange-400 font-mono font-bold bg-orange-500/10 px-2 py-0.5 rounded">20 m/s</span>
+                        </div>
+                        <input type="range" id="inputV0" min="5" max="50" value="20" class="slider-orange" oninput="updateControls()">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1 font-mono"><span>5 m/s</span><span>50 m/s</span></div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300">Sudut Elevasi (\(\theta\))</label>
+                            <span id="valTheta" class="text-sm text-orange-400 font-mono font-bold bg-orange-500/10 px-2 py-0.5 rounded">45°</span>
+                        </div>
+                        <input type="range" id="inputTheta" min="0" max="90" value="45" class="slider-orange" oninput="updateControls()">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1 font-mono"><span>0° (Datar)</span><span>90° (Tegak)</span></div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-700 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 mb-1 block">Gravitasi Lingkungan (\(g\))</label>
+                        <select id="inputG" onchange="updateControls()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm outline-none focus:border-orange-500">
+                            <option value="9.8">🌍 Bumi (9.8 m/s²)</option>
+                            <option value="1.6">🌙 Bulan (1.6 m/s²)</option>
+                            <option value="24.8">🪐 Jupiter (24.8 m/s²)</option>
+                            <option value="3.7">🔴 Mars (3.7 m/s²)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 mb-1 block">Objek Tembakan</label>
+                        <select id="inputObj" onchange="drawArena()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm outline-none focus:border-orange-500">
+                            <option value="cannon">💣 Bola Meriam</option>
+                            <option value="ball">🏀 Bola Basket</option>
+                            <option value="rocket">🚀 Roket Mini</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col justify-center gap-4">
+                <button id="btnLaunch" onclick="launchProjectile()" class="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider">
+                    <i data-lucide="rocket" width="24"></i> LAUNCH!
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btnSaveTrail" onclick="saveTrail()" disabled class="bg-blue-600/20 text-blue-400 border border-blue-600/50 font-bold py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition flex justify-center items-center gap-2 text-xs opacity-50 cursor-not-allowed">
+                        <i data-lucide="copy-plus" width="16"></i> Compare
+                    </button>
+                    <button onclick="resetLab()" class="bg-slate-700 text-white font-bold py-2.5 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 text-xs">
+                        <i data-lucide="rotate-ccw" width="16"></i> Reset All
+                    </button>
+                </div>
+
+                <div class="mt-2 bg-slate-900 p-3 rounded-lg border border-slate-700 text-center">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Prediksi Jarak Jatuh (Teori)</p>
+                    <p id="predRange" class="text-xl font-mono font-bold text-green-400">0.0 m</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Ketinggian vs Waktu (Y-t)</h3>
+                <div class="w-full h-56"><canvas id="chartY"></canvas></div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Kecepatan Vertikal vs Waktu (Vy-t)</h3>
+                <div class="w-full h-56"><canvas id="chartVy"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Tabel Data Kinematika</h3>
+                <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                    <i data-lucide="file-down" width="14"></i> Export Laporan
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-sm" id="dataTable">
+                    <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Waktu (s)</th>
+                            <th class="p-3 border-b border-slate-700 text-orange-400">Posisi X (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-orange-400">Posisi Y (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Kecep. Vx (m/s)</th>
+                            <th class="p-3 border-b border-slate-700 text-blue-400">Kecep. Vy (m/s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS & PHYSICS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Physics State
+        let isRunning = false;
+        let animFrame;
+        let t = 0;
+        let dt = 0.03; // Time step visual (dipercepat agar smooth)
+        
+        let v0 = 20;
+        let thetaDeg = 45;
+        let thetaRad = Math.PI / 4;
+        let g = 9.8;
+        
+        let pX = 0, pY = 0;
+        let vx = 0, vy = 0;
+        
+        // View Scale (Penting agar lintasan muat di canvas)
+        let scale = 1; 
+        const paddingBottom = 40;
+        const paddingLeft = 40;
+
+        // Data & Trails
+        let currentTrail = [];
+        let savedTrails = []; // Untuk fitur Compare
+        let dataHistory = [];
+        
+        // Target Mode
+        let isTargetMode = false;
+        let targetDistance = 0;
+
+        // --- CHARTS INITIALIZATION ---
+        let chartY, chartVy;
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            const ctxY = document.getElementById('chartY').getContext('2d');
+            const ctxVy = document.getElementById('chartVy').getContext('2d');
+
+            chartY = new Chart(ctxY, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Ketinggian (Y)', borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', data: [], fill: true, pointRadius: 0, tension: 0.3, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { title: {display: true, text: 'Y (m)'} } } }
+            });
+
+            chartVy = new Chart(ctxVy, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Vy', borderColor: '#3b82f6', data: [], pointRadius: 0, tension: 0.1, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { title: {display: true, text: 'Vy (m/s)'} } } }
+            });
+        }
+
+        // --- CORE LOGIC ---
+        function updateControls() {
+            if(isRunning) return; // Jangan ubah parameter saat peluru terbang
+            
+            v0 = parseFloat(document.getElementById('inputV0').value);
+            thetaDeg = parseFloat(document.getElementById('inputTheta').value);
+            g = parseFloat(document.getElementById('inputG').value);
+            thetaRad = thetaDeg * Math.PI / 180;
+
+            document.getElementById('valV0').innerText = v0 + " m/s";
+            document.getElementById('valTheta').innerText = thetaDeg + "°";
+
+            // Hitung Max R untuk auto-scaling Canvas
+            const Rmax = (v0 * v0 * Math.sin(2 * thetaRad)) / g;
+            const Hmax = (v0 * v0 * Math.pow(Math.sin(thetaRad), 2)) / (2 * g);
+            
+            document.getElementById('predRange').innerText = Rmax.toFixed(1) + " m";
+            
+            // Hitung Skala agar gambar pas di layar (asumsi max view X = Rmax + 20% margin)
+            const viewMaxX = Math.max(100, Rmax * 1.2); 
+            scale = (canvas.width - paddingLeft * 2) / viewMaxX;
+
+            // Reset peluru ke moncong meriam
+            t = 0; pX = 0; pY = 0;
+            currentTrail = [];
+            
+            drawArena();
+        }
+
+        function toggleTargetMode() {
+            isTargetMode = document.getElementById('targetMode').checked;
+            if(isTargetMode) {
+                // Generate target random (antara 50m - 200m)
+                targetDistance = Math.floor(Math.random() * 150) + 50;
+                showMessage(`Target di ${targetDistance}m!`, 'text-blue-400');
+            }
+            updateControls(); // Redraw
+        }
+
+        // --- RENDER ENGINE (CANVAS) ---
+        function getCanvasX(x) { return paddingLeft + (x * scale); }
+        function getCanvasY(y) { return canvas.height - paddingBottom - (y * scale); }
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid (Setiap 20 meter)
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i = 0; i < 1000; i+=20) {
+                let cx = getCanvasX(i);
+                if(cx > canvas.width) break;
+                ctx.moveTo(cx, 0); ctx.lineTo(cx, canvas.height - paddingBottom);
+                // Text label x-axis
+                ctx.fillStyle = '#64748b'; ctx.font = '10px monospace';
+                ctx.fillText(i + 'm', cx - 10, canvas.height - 15);
+            }
+            ctx.stroke();
+
+            // Draw Ground Line
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - paddingBottom);
+            ctx.lineTo(canvas.width, canvas.height - paddingBottom);
+            ctx.stroke();
+
+            // Draw Target (If Active)
+            if(isTargetMode) {
+                const tx = getCanvasX(targetDistance);
+                const ty = getCanvasY(0);
+                // Base
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(tx - 15, ty - 10, 30, 10);
+                // Bullseye
+                ctx.beginPath(); ctx.arc(tx, ty - 10, 15, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+                ctx.beginPath(); ctx.arc(tx, ty - 10, 10, 0, Math.PI * 2); ctx.fillStyle = '#ef4444'; ctx.fill();
+                ctx.beginPath(); ctx.arc(tx, ty - 10, 5, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+            }
+
+            // Draw Saved Trails (Compare Mode)
+            savedTrails.forEach((trail, index) => {
+                ctx.beginPath();
+                ctx.strokeStyle = `hsla(${index * 50}, 70%, 50%, 0.5)`; // Warna warni tipis
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                trail.forEach((pt, i) => {
+                    if(i === 0) ctx.moveTo(getCanvasX(pt.x), getCanvasY(pt.y));
+                    else ctx.lineTo(getCanvasX(pt.x), getCanvasY(pt.y));
+                });
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            // Draw Current Trail
+            if(currentTrail.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#f97316';
+                ctx.lineWidth = 3;
+                currentTrail.forEach((pt, i) => {
+                    if(i === 0) ctx.moveTo(getCanvasX(pt.x), getCanvasY(pt.y));
+                    else ctx.lineTo(getCanvasX(pt.x), getCanvasY(pt.y));
+                });
+                ctx.stroke();
+            }
+
+            // Draw Cannon Base
+            const baseCx = getCanvasX(0); const baseCy = getCanvasY(0);
+            ctx.beginPath(); ctx.arc(baseCx, baseCy, 15, Math.PI, 0); ctx.fillStyle = '#64748b'; ctx.fill();
+
+            // Calculate Projectile Position & Angle
+            const cx = getCanvasX(pX);
+            const cy = getCanvasY(pY);
+            
+            // Dynamic Rotation Angle of Projectile (Arah moncong atau arah gerak)
+            let objAngle = -thetaRad; // Default: Menghadap atas (moncong meriam)
+            if (isRunning) {
+                objAngle = Math.atan2(-vy, vx); // Saat terbang, hidung mengikuti vektor kecepatan
+            }
+
+            // Draw Projectile / Cannon Barrel
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(objAngle); // Rotasi fisik sesungguhnya!
+
+            const objType = document.getElementById('inputObj').value;
+            if(!isRunning) {
+                // Gambar laras meriam kalau belum nembak
+                ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -10, 40, 20);
+                ctx.fillStyle = '#1e293b'; ctx.fillRect(35, -12, 10, 24);
+            } else {
+                // Gambar Objek Terbang
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                if(objType === 'cannon') ctx.fillText('💣', 0, 0);
+                else if(objType === 'ball') ctx.fillText('🏀', 0, 0);
+                else ctx.fillText('🚀', 0, 0);
+            }
+            ctx.restore();
+        }
+
+        // --- ANIMATION LOOP ---
+        let lastLogTime = -1;
+
+        function animate() {
+            if(!isRunning) return;
+
+            // FUNGSI INTI GERAK PARABOLA 
+            t += dt;
+            vx = v0 * Math.cos(thetaRad);
+            vy = (v0 * Math.sin(thetaRad)) - (g * t);
+            
+            pX = vx * t;
+            pY = (v0 * Math.sin(thetaRad) * t) - (0.5 * g * t * t);
+
+            // Simpan jejak
+            currentTrail.push({x: pX, y: pY});
+
+            // Update HUD
+            document.getElementById('hudTime').innerText = t.toFixed(2) + " s";
+            document.getElementById('hudPos').innerText = `${pX.toFixed(1)}, ${pY.toFixed(1)} m`;
+            document.getElementById('hudVel').innerText = `${vx.toFixed(1)}, ${vy.toFixed(1)} m/s`;
+
+            // Log Data ke Grafik & Tabel setiap 0.2 detik (biar rapi)
+            if(t - lastLogTime >= 0.2) {
+                const tStr = t.toFixed(1);
+                chartY.data.labels.push(tStr); chartY.data.datasets[0].data.push(pY.toFixed(2)); chartY.update();
+                chartVy.data.labels.push(tStr); chartVy.data.datasets[0].data.push(vy.toFixed(2)); chartVy.update();
+                
+                const row = `<tr>
+                    <td class="p-2 border-b border-slate-700/50">${tStr}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-orange-400">${pX.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-orange-400">${pY.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-blue-400">${vx.toFixed(2)}</td>
+                    <td class="p-2 border-b border-slate-700/50 text-blue-400">${vy.toFixed(2)}</td>
+                </tr>`;
+                document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+                dataHistory.push([tStr, pX.toFixed(2), pY.toFixed(2), vx.toFixed(2), vy.toFixed(2)]);
+                
+                lastLogTime = t;
+            }
+
+            drawArena();
+
+            // Cek kondisi menyentuh tanah (Y <= 0)
+            if(pY <= 0) {
+                pY = 0; // Paskan ke tanah
+                drawArena(); // Render frame terakhir
+                finishLaunch();
+            } else {
+                animFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        // --- BUTTON ACTIONS ---
+        function launchProjectile() {
+            if(isRunning) return;
+            
+            // Reset Data (kecuali settingan v0 dkk)
+            document.getElementById('tableBody').innerHTML = ''; dataHistory = [];
+            chartY.data.labels = []; chartY.data.datasets[0].data = [];
+            chartVy.data.labels = []; chartVy.data.datasets[0].data = [];
+            currentTrail = []; t = 0; lastLogTime = -1;
+            
+            isRunning = true;
+            document.getElementById('btnLaunch').disabled = true;
+            document.getElementById('btnLaunch').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('inputV0').disabled = true;
+            document.getElementById('inputTheta').disabled = true;
+
+            // Tombol Compare dimatikan saat animasi
+            const btnSave = document.getElementById('btnSaveTrail');
+            btnSave.disabled = true; btnSave.classList.add('opacity-50', 'cursor-not-allowed');
+
+            animFrame = requestAnimationFrame(animate);
+        }
+
+        function finishLaunch() {
+            isRunning = false;
+            document.getElementById('btnLaunch').disabled = false;
+            document.getElementById('btnLaunch').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('inputV0').disabled = false;
+            document.getElementById('inputTheta').disabled = false;
+
+            // Nyalakan tombol compare
+            const btnSave = document.getElementById('btnSaveTrail');
+            btnSave.disabled = false; btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            // Cek Kena Target
+            if(isTargetMode) {
+                const diff = Math.abs(pX - targetDistance);
+                if(diff <= 15) { // Toleransi 15 meter
+                    showMessage("🎯 TEPAT SASARAN! BINGO!", "text-green-400");
+                } else if(pX < targetDistance) {
+                    showMessage("📉 TERLALU DEKAT! Naikkan v0 atau sesuaikan sudut.", "text-yellow-400");
+                } else {
+                    showMessage("🚀 TERLALU JAUH! Kurangi kecepatan/sudut.", "text-red-400");
+                }
+            } else {
+                // Insight Fisika Biasa
+                if(thetaDeg === 45) showMessage("Sudut 45° memberikan jarak maksimum! 🏆", "text-blue-400");
+                else showMessage(`Peluru jatuh di jarak ${pX.toFixed(1)}m`, "text-orange-400");
+            }
+        }
+
+        function showMessage(text, colorClass) {
+            const msgBox = document.getElementById('gameMessage');
+            msgBox.innerText = text;
+            msgBox.className = `absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-2xl md:text-4xl font-black italic tracking-widest transition-opacity duration-300 pointer-events-none drop-shadow-2xl opacity-100 ${colorClass}`;
+            
+            // Hilang setelah 3 detik
+            setTimeout(() => { msgBox.classList.replace('opacity-100', 'opacity-0'); }, 3000);
+        }
+
+        function saveTrail() {
+            if(currentTrail.length > 0) {
+                savedTrails.push([...currentTrail]); // Copy array
+                showMessage(`Jejak ${savedTrails.length} Disimpan!`, "text-blue-400");
+                
+                // Matikan tombol agar tidak di-spam
+                document.getElementById('btnSaveTrail').disabled = true; 
+                document.getElementById('btnSaveTrail').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function resetLab() {
+            savedTrails = [];
+            updateControls();
+            showMessage("Arena Dibersihkan", "text-slate-400");
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data terbang!");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab Fisika: Gerak Parabola", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Kecepatan Awal (v0) : ${v0} m/s`, 14, 30);
+            doc.text(`Sudut Elevasi (theta) : ${thetaDeg} derajat`, 14, 36);
+            doc.text(`Gravitasi (g) : ${g} m/s2`, 14, 42);
+            doc.text(`Jarak Jatuh Maksimum (R) : ${pX.toFixed(2)} m`, 14, 48);
+            
+            doc.autoTable({ startY: 55, head: [['Waktu (s)', 'Posisi X (m)', 'Posisi Y (m)', 'Kecep. Vx (m/s)', 'Kecep. Vy (m/s)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            doc.save("Laporan_Gerak_Parabola.pdf");
+        }
+
+        // Init App
+        initCharts();
+        updateControls();
+    </script>
+</body>
+</html>

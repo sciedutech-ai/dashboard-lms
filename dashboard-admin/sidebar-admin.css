@@ -1,0 +1,39 @@
+/* Sidebar Layout & Transition */
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    height: 100vh;
+    width: 16rem; /* w-64 */
+    
+    /* Transisi Slide */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+}
+
+/* Tampilan Desktop: Selalu tampil */
+@media (min-width: 1024px) {
+    #sidebar {
+        position: sticky;
+        transform: translateX(0);
+    }
+}
+
+/* Tampilan Mobile: Tampil saat class 'open' ditambahkan */
+#sidebar.open {
+    transform: translateX(0);
+}
+
+/* Overlay Mobile */
+#mobile-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    backdrop-filter: blur(4px);
+}
+
+#mobile-overlay.hidden {
+    display: none;
+}

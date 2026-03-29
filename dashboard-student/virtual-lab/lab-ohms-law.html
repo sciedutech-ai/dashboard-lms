@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ohm's Law Simulator - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #eab308;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-volt::-webkit-slider-thumb { border-color: #eab308; background: #eab308; box-shadow: 0 0 15px #eab308; }
+        .slider-ohm::-webkit-slider-thumb { border-color: #ef4444; background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+
+        #simCanvas { background: #020617; width: 100%; height: auto; border-radius: 1rem; }
+        .glass-hud { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .shake-animation { animation: shake 0.2s infinite; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(-2px,1px); } 50% { transform: translate(2px,-1px); } 75% { transform: translate(-2px,-1px); } 100% { transform: translate(0,0); } }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500 tracking-tight">⚡ Ohm's Law Simulator</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Tegangan vs Arus</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-yellow-600/20 hover:bg-yellow-600/40 border border-yellow-500/30 rounded-lg text-sm font-bold text-yellow-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-yellow-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-yellow-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="zap"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Mode Manual:</b> Geser slider Tegangan (\(V\)) dan Hambatan (\(R\)). Amati perubahan laju elektron dan angka Arus (\(I\)). Klik <b>Catat Data</b>.</li>
+                    <li><b>Analogi Air:</b> Tegangan adalah "Pompa pendorong", Hambatan adalah "Pipa yang menyempit", dan Arus adalah "Laju aliran air".</li>
+                    <li><b>Pemilihan Material:</b> Pilih jenis kawat (Tembaga, Besi, Nichrome) untuk mengubah hambatan dasar secara instan.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-emerald-400 mb-2">📊 Mode Auto-Plot & Joule Effect</h4>
+                    <p class="mb-2">Gunakan tombol <b>AUTO PLOT</b> untuk membiarkan sistem memindai tegangan dari 0V - 24V dan menggambar grafiknya otomatis.</p>
+                    <p class="text-red-400 font-bold text-xs">⚠️ HATI-HATI! Jika Arus terlalu besar (Hambatan kecil, Tegangan tinggi), resistor akan memanas (Efek Joule) dan bisa TERBAKAR!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-yellow-400 font-bold mb-2">Hukum Ohm</h3>
+                <p class="text-xs mb-2">Kuat arus listrik (\(I\)) yang mengalir berbanding lurus dengan tegangan (\(V\)) dan berbanding terbalik dengan hambatan (\(R\)).</p>
+                <div class="font-mono text-yellow-300 text-sm bg-slate-950 p-2 rounded text-center">\( V = I \times R \quad \Rightarrow \quad I = \frac{V}{R} \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-red-400 font-bold mb-2">Daya & Pemanasan Joule</h3>
+                <p class="text-xs mb-2">Energi listrik yang tertahan oleh resistor akan diubah menjadi panas. Semakin besar arus, semakin panas resistor tersebut.</p>
+                <div class="font-mono text-red-300 text-xs bg-slate-950 p-2 rounded text-center">\( P = V \times I \quad \Rightarrow \quad P = I^2 \times R \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden h-[300px]">
+                    <div class="absolute top-3 left-3 z-20 glass-hud px-4 py-2 rounded-xl text-center">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Ammeter (I)</p>
+                        <p class="font-mono text-2xl text-blue-400 font-black drop-shadow-md" id="hudI">0.00 <span class="text-sm">A</span></p>
+                    </div>
+                    <div class="absolute top-3 right-3 z-20 glass-hud px-4 py-2 rounded-xl text-center">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Voltmeter (V)</p>
+                        <p class="font-mono text-2xl text-yellow-400 font-black drop-shadow-md" id="hudV">0.0 <span class="text-sm">V</span></p>
+                    </div>
+
+                    <div id="burnAlert" class="absolute inset-0 z-30 bg-red-900/80 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                        <i data-lucide="flame" class="text-orange-400 mb-2" width="48" height="48"></i>
+                        <h2 class="text-2xl font-black text-white tracking-widest shake-animation">RESISTOR TERBAKAR!</h2>
+                        <p class="text-sm text-red-200 mt-2 font-bold">Daya melebihi 100 Watt.</p>
+                        <p class="text-xs text-slate-300 mt-1">Turunkan Tegangan atau naikkan Hambatan.</p>
+                    </div>
+
+                    <canvas id="simCanvas" width="500" height="300" class="w-full h-full"></canvas>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-yellow-500 p-5 shadow-lg flex-1">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-yellow-400 flex items-center gap-2"><i data-lucide="sliders"></i> Panel Kontrol</h3>
+                        <div id="autoStatus" class="hidden px-2 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-400 text-[10px] font-bold rounded animate-pulse">AUTO PLOT BERJALAN...</div>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Sumber Tegangan (\(V\))</label>
+                                <span id="valV" class="text-sm text-yellow-400 font-mono font-bold bg-yellow-500/10 px-2 py-0.5 rounded">12.0 V</span>
+                            </div>
+                            <input type="range" id="inputV" min="0" max="24" value="12" step="0.5" class="slider-volt w-full" oninput="updatePhysics()">
+                        </div>
+                        
+                        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-end mb-2">
+                                <div>
+                                    <label class="text-sm font-bold text-slate-300">Hambatan Resistor (\(R\))</label>
+                                    <select id="materialSelect" onchange="changeMaterial()" class="block mt-1 bg-slate-800 border border-slate-600 text-slate-300 text-xs rounded p-1 outline-none">
+                                        <option value="custom">🛠️ Kustom</option>
+                                        <option value="2">🟠 Tembaga (R Rendah)</option>
+                                        <option value="20">🔘 Besi (R Sedang)</option>
+                                        <option value="80">🔴 Nichrome (R Tinggi)</option>
+                                    </select>
+                                </div>
+                                <span id="valR" class="text-sm text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded">10.0 Ω</span>
+                            </div>
+                            <input type="range" id="inputR" min="1" max="100" value="10" step="1" class="slider-ohm w-full" oninput="updatePhysics('custom')">
+                        </div>
+
+                        <div class="flex justify-between items-center px-2">
+                            <span class="text-xs text-slate-400">Daya Terdisipasi (Panas):</span>
+                            <span id="valP" class="text-sm font-mono font-bold text-orange-400">0.0 W</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <button id="btnRecord" onclick="recordDataManual()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm border border-blue-500">
+                        <i data-lucide="pen-tool" width="16"></i> Catat Manual
+                    </button>
+                    <button id="btnAuto" onclick="startAutoPlot()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm border border-emerald-500">
+                        <i data-lucide="play" width="16"></i> AUTO PLOT
+                    </button>
+                    <button onclick="resetLab()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 text-sm border border-slate-600">
+                        <i data-lucide="rotate-ccw" width="16"></i> Reset Data
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                        <h3 class="text-xs font-bold text-slate-300 mb-2 text-center border-b border-slate-700 pb-2">Karakteristik V vs I (Linier)</h3>
+                        <div class="w-full h-48"><canvas id="chartVI"></canvas></div>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                        <h3 class="text-xs font-bold text-slate-300 mb-2 text-center border-b border-slate-700 pb-2">Hambatan vs Arus (I vs R)</h3>
+                        <div class="w-full h-48"><canvas id="chartIR"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Data Pengukuran</h3>
+                        <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                            <i data-lucide="file-down" width="14"></i> Export PDF
+                        </button>
+                    </div>
+                    <div class="overflow-y-auto flex-1 max-h-[180px] custom-scrollbar border border-slate-700 rounded-lg">
+                        <table class="w-full text-left border-collapse text-xs md:text-sm">
+                            <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 border-b border-slate-700">No.</th>
+                                    <th class="p-3 border-b border-slate-700 text-yellow-400">Tegangan (V)</th>
+                                    <th class="p-3 border-b border-slate-700 text-red-400">Hambatan (Ω)</th>
+                                    <th class="p-3 border-b border-slate-700 text-blue-400">Kuat Arus (A)</th>
+                                    <th class="p-3 border-b border-slate-700 text-orange-400">Daya (W)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">Belum ada data.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // Physics State
+        let V = 12.0;
+        let R = 10.0;
+        let I = 0.0;
+        let P = 0.0;
+        
+        const MAX_POWER = 100.0; // Batas Daya sebelum terbakar
+        let isBurned = false;
+        
+        // Auto Plot State
+        let isAutoPlotting = false;
+        let autoPlotTimer = null; // PERBAIKAN: Inisialisasi eksplisit
+
+        // Data Storage
+        let dataHistory = [];
+        let recordCount = 0;
+        let chartVI, chartIR;
+
+        // Animation Path
+        let electronsOffset = 0;
+
+        // --- CHARTS INITIALIZATION ---
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            
+            // Grafik V vs I (Linier)
+            chartVI = new Chart(document.getElementById('chartVI').getContext('2d'), {
+                type: 'line',
+                data: { datasets: [{ label: 'Arus (A)', borderColor: '#3b82f6', backgroundColor: '#93c5fd', data: [], pointRadius: 4, showLine: true, tension: 0.1, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { 
+                    x: { title: {display: true, text: 'Tegangan (V)'}, type: 'linear', min: 0, max: 24 },
+                    y: { title: {display: true, text: 'Arus (A)'}, min: 0 }
+                }}
+            });
+
+            // Grafik I vs R (Lengkung Terbalik)
+            chartIR = new Chart(document.getElementById('chartIR').getContext('2d'), {
+                type: 'line',
+                data: { datasets: [{ label: 'Arus (A)', borderColor: '#ef4444', backgroundColor: '#fca5a5', data: [], pointRadius: 4, showLine: true, tension: 0.4, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { 
+                    x: { title: {display: true, text: 'Hambatan (Ω)'}, type: 'linear', min: 0, max: 100 },
+                    y: { title: {display: true, text: 'Arus (A)'}, min: 0 }
+                }}
+            });
+        }
+
+        // --- CORE PHYSICS ---
+        function changeMaterial() {
+            const sel = document.getElementById('materialSelect').value;
+            if(sel !== 'custom') {
+                document.getElementById('inputR').value = sel;
+            }
+            updatePhysics();
+        }
+
+        function updatePhysics(source = null) {
+            if(isAutoPlotting) return; // Lock if auto plotting
+            
+            if(source === 'custom') {
+                document.getElementById('materialSelect').value = 'custom';
+            }
+
+            V = parseFloat(document.getElementById('inputV').value);
+            R = parseFloat(document.getElementById('inputR').value);
+
+            // Hukum Ohm
+            I = V / R;
+            P = Math.pow(I, 2) * R; // Joule Heating
+
+            // Update UI
+            document.getElementById('valV').innerText = V.toFixed(1) + " V";
+            document.getElementById('valR').innerText = R.toFixed(1) + " Ω";
+            document.getElementById('valP').innerText = P.toFixed(1) + " W";
+            
+            document.getElementById('hudV').innerText = V.toFixed(1) + " V";
+            document.getElementById('hudI').innerText = I.toFixed(2) + " A";
+
+            // Cek Ledakan / Bakar
+            const alertBox = document.getElementById('burnAlert');
+            if (P > MAX_POWER) {
+                isBurned = true;
+                alertBox.classList.remove('opacity-0', 'pointer-events-none');
+                I = 0; // Arus putus
+                document.getElementById('hudI').innerText = "0.00 A";
+            } else {
+                isBurned = false;
+                alertBox.classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        // --- RENDER VISUAL (CANVAS) ---
+        function drawCircuit() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Koordinat Sirkuit Persegi
+            const x1 = 100, y1 = 70;
+            const x2 = 400, y2 = 230;
+
+            // 1. Gambar Kabel Dasar
+            ctx.beginPath();
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 6; ctx.lineJoin = "round";
+            ctx.moveTo(x1, y2 - 40); ctx.lineTo(x1, y1); ctx.lineTo(x2, y1);
+            ctx.lineTo(x2, y2); ctx.lineTo(x1, y2);
+            ctx.stroke();
+
+            // 2. Animasi Aliran Elektron
+            if(!isBurned && I > 0) {
+                electronsOffset -= (I * 2); 
+                
+                ctx.beginPath();
+                ctx.strokeStyle = '#38bdf8'; 
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 20]); 
+                ctx.lineDashOffset = electronsOffset;
+                
+                ctx.moveTo(x1, y2 - 40); ctx.lineTo(x1, y1); ctx.lineTo(x2, y1);
+                ctx.lineTo(x2, y2); ctx.lineTo(x1 + 30, y2);
+                ctx.stroke();
+                
+                ctx.setLineDash([]); 
+                
+                ctx.shadowColor = '#0ea5e9'; ctx.shadowBlur = 10;
+                ctx.stroke(); ctx.shadowBlur = 0;
+            }
+
+            // 3. Gambar Baterai
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(x1 - 20, y2 - 60, 40, 60);
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(x1 - 20, y2 - 60, 40, 15);
+            ctx.fillStyle = '#3b82f6'; ctx.fillRect(x1 - 20, y2 - 15, 40, 15);
+            
+            ctx.fillStyle = '#ffffff'; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(V.toFixed(1)+"V", x1, y2 - 30);
+
+            // 4. Gambar Resistor
+            let resY_center = (y1 + y2) / 2;
+            let heatRatio = Math.min(1.0, P / MAX_POWER);
+            let rColor = '#64748b'; 
+            
+            if(isBurned) {
+                rColor = '#1e293b'; 
+            } else if (heatRatio > 0.1) {
+                let r = 255;
+                let g = Math.floor(255 * (1 - heatRatio)); // Makin panas makin merah
+                let b = 0;
+                rColor = `rgb(${r},${g},${b})`;
+                ctx.shadowColor = rColor; ctx.shadowBlur = 20 * heatRatio;
+            }
+
+            ctx.beginPath();
+            ctx.strokeStyle = rColor;
+            ctx.lineWidth = 4;
+            ctx.moveTo(x2, resY_center - 40);
+            ctx.lineTo(x2 + 15, resY_center - 30);
+            ctx.lineTo(x2 - 15, resY_center - 10);
+            ctx.lineTo(x2 + 15, resY_center + 10);
+            ctx.lineTo(x2 - 15, resY_center + 30);
+            ctx.lineTo(x2, resY_center + 40);
+            ctx.stroke();
+            ctx.shadowBlur = 0; 
+
+            ctx.fillStyle = isBurned ? '#ef4444' : '#f8fafc';
+            ctx.font = "bold 14px monospace";
+            ctx.fillText(R.toFixed(1)+" Ω", x2 + 35, resY_center);
+
+            animFrame = requestAnimationFrame(drawCircuit);
+        }
+
+        // --- DATA & AUTO PLOT ---
+        function recordDataManual() {
+            if(isBurned) return alert("Resistor terbakar! Turunkan tegangan dulu.");
+            recordToTableAndChart(V, R, I, P);
+        }
+
+        function recordToTableAndChart(v_val, r_val, i_val, p_val) {
+            recordCount++;
+            
+            // PUSH KE CHART
+            chartVI.data.datasets[0].data.push({ x: v_val, y: i_val });
+            chartVI.update();
+
+            chartIR.data.datasets[0].data.push({ x: r_val, y: i_val });
+            chartIR.update();
+
+            // PUSH KE TABEL
+            if(recordCount === 1) document.getElementById('tableBody').innerHTML = '';
+            
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${recordCount}</td>
+                <td class="p-2 border-b border-slate-700/50 text-yellow-400 font-bold">${v_val.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400">${r_val.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400 font-bold">${i_val.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-orange-400">${p_val.toFixed(1)}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([recordCount, v_val.toFixed(1), r_val.toFixed(1), i_val.toFixed(2), p_val.toFixed(1)]);
+        }
+
+        function startAutoPlot() {
+            // Cek jika sedang jalan, jangan ditumpuk
+            if(isAutoPlotting) return;
+
+            if(isBurned) {
+                document.getElementById('inputV').value = 0; 
+                updatePhysics();
+            }
+
+            resetLab(false); 
+
+            isAutoPlotting = true;
+            document.getElementById('btnAuto').disabled = true;
+            document.getElementById('btnAuto').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('inputV').disabled = true;
+            document.getElementById('inputR').disabled = true;
+            document.getElementById('autoStatus').classList.remove('hidden');
+
+            let sweepV = 0.0;
+            document.getElementById('inputV').value = sweepV;
+            
+            // PERBAIKAN: Clear interval yang mungkin masih nyangkut
+            if (autoPlotTimer) clearInterval(autoPlotTimer);
+
+            autoPlotTimer = setInterval(() => {
+                sweepV += 2.0; 
+                
+                if(sweepV > 24) {
+                    stopAutoPlot();
+                    return;
+                }
+                
+                document.getElementById('inputV').value = sweepV;
+                V = sweepV;
+                I = V / R;
+                P = Math.pow(I, 2) * R;
+                
+                document.getElementById('valV').innerText = V.toFixed(1) + " V";
+                document.getElementById('valP').innerText = P.toFixed(1) + " W";
+                document.getElementById('hudV').innerText = V.toFixed(1) + " V";
+                
+                if (P > MAX_POWER) {
+                    isBurned = true;
+                    document.getElementById('burnAlert').classList.remove('opacity-0', 'pointer-events-none');
+                    document.getElementById('hudI').innerText = "0.00 A";
+                    stopAutoPlot(); 
+                    return;
+                } else {
+                    document.getElementById('hudI').innerText = I.toFixed(2) + " A";
+                    recordToTableAndChart(V, R, I, P);
+                }
+                
+            }, 300);
+        }
+
+        function stopAutoPlot() {
+            if (autoPlotTimer) {
+                clearInterval(autoPlotTimer);
+                autoPlotTimer = null;
+            }
+            isAutoPlotting = false;
+            document.getElementById('btnAuto').disabled = false;
+            document.getElementById('btnAuto').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('inputV').disabled = false;
+            document.getElementById('inputR').disabled = false;
+            document.getElementById('autoStatus').classList.add('hidden');
+        }
+
+        function resetLab(fullReset = true) {
+            stopAutoPlot();
+            recordCount = 0;
+            dataHistory = [];
+            
+            if(chartVI && chartIR) {
+                chartVI.data.datasets[0].data = []; chartVI.update();
+                chartIR.data.datasets[0].data = []; chartIR.update();
+            }
+            
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">Belum ada data.</td></tr>';
+            
+            if(fullReset) {
+                document.getElementById('inputV').value = 12;
+                document.getElementById('inputR').value = 10;
+                updatePhysics();
+            }
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Lakukan pengukuran terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Hukum Ohm", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Pembuktian hubungan linear antara Tegangan (V) dan Arus (I).", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['No.', 'Tegangan (Volt)', 'Hambatan (Ohm)', 'Arus (A)', 'Daya Panas (W)']], body: dataHistory, theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            let finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFont("helvetica", "italic");
+            doc.text("Kesimpulan: Arus (I) berbanding lurus dengan Tegangan (V) dan berbanding terbalik dengan Hambatan (R).", 14, finalY);
+
+            doc.save("Laporan_Hukum_Ohm.pdf");
+        }
+
+        // Init App
+        initCharts(); // PERBAIKAN: Pastikan chart di-inisialisasi lebih awal
+        updatePhysics();
+        drawCircuit(); 
+    </script>
+</body>
+</html>

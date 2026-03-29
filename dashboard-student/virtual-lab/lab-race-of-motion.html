@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race of Motion - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        .neon-text-cyan { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
+        .neon-text-fuchsia { text-shadow: 0 0 10px rgba(217, 70, 239, 0.8); }
+        
+        .track-line {
+            background-image: linear-gradient(to right, #334155 50%, transparent 50%);
+            background-size: 40px 2px;
+            background-repeat: repeat-x;
+            background-position: bottom;
+        }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-cyan::-webkit-slider-thumb { background: #06b6d4; box-shadow: 0 0 15px #06b6d4; }
+        .slider-fuchsia::-webkit-slider-thumb { background: #d946ef; box-shadow: 0 0 15px #d946ef; }
+
+        .vehicle-obj { transition: transform 0.1s; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); display: inline-block; }
+        .motion-blur { filter: drop-shadow(-10px 0 5px rgba(255,255,255,0.3)) blur(0.5px); }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">🚀 Race of Motion</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • GLB & GLBB</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-sm font-bold text-indigo-300 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-indigo-500/30 p-6 shadow-inner relative">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto">
+            <h3 class="text-indigo-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Penggunaan Simulasi</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+                <ol class="list-decimal list-inside space-y-2">
+                    <li><b>Pilih Kendaraan</b> (Mobil 🚗, Motor 🏍️, atau Roket 🚀) untuk Jalur A dan Jalur B.</li>
+                    <li><b>Pilih Mode Gerak:</b><br>
+                        - <i>GLB</i>: Kecepatan tetap (tanpa percepatan).<br>
+                        - <i>GLBB</i>: Kecepatan bertambah/berkurang (ada percepatan).
+                    </li>
+                    <li><b>Tentukan Variabel Awal</b> dengan menggeser slider Kecepatan (\(v_0\)) dan Percepatan (\(a\)).</li>
+                </ol>
+                <ol class="list-decimal list-inside space-y-2" start="4">
+                    <li>Atur <b>Batas Waktu Simulasi</b> pada menu Pengaturan Sistem.</li>
+                    <li>Klik tombol <b class="text-green-400">MULAI BALAPAN</b>.</li>
+                    <li><b>Amati & Catat:</b><br>
+                        - Perhatikan pergerakan mobil di arena.<br>
+                        - Amati perubahan bentuk pada Grafik Jarak dan Kecepatan.<br>
+                        - Unduh hasil pengamatan (PDF) pada tabel di bawah.
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-slate-300">
+            <div>
+                <h3 class="text-cyan-400 font-bold text-lg mb-2">Gerak Lurus Beraturan (GLB)</h3>
+                <p class="mb-2">Kecepatan konstan (\(v\) tetap), tanpa percepatan (\(a = 0\)).</p>
+                <div class="bg-slate-900 p-3 rounded-lg font-mono text-cyan-300 border border-slate-700">\( s = v \times t \)</div>
+            </div>
+            <div>
+                <h3 class="text-fuchsia-400 font-bold text-lg mb-2">Gerak Lurus Berubah Beraturan (GLBB)</h3>
+                <p class="mb-2">Kecepatan berubah beraturan, memiliki percepatan tetap (\(a \neq 0\)).</p>
+                <div class="bg-slate-900 p-3 rounded-lg font-mono text-fuchsia-300 border border-slate-700">
+                    \( v_t = v_0 + a \cdot t \)<br>\( s = v_0 \cdot t + \frac{1}{2} \cdot a \cdot t^2 \)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-4 md:p-6 relative overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="flag" class="text-green-400"></i> Arena Balap <span id="trackDistance" class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400 font-mono">1000m</span></h2>
+                <div class="font-mono font-bold text-2xl text-yellow-400 bg-black/50 px-4 py-1 rounded-lg border border-yellow-400/30" id="timerDisplay">0.0 s</div>
+            </div>
+
+            <div class="relative h-20 w-full bg-slate-800/50 rounded-lg mb-4 track-line border-l-4 border-cyan-500 overflow-hidden" id="laneA">
+                <div id="wrapperA" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 transition-all duration-75">
+                    <div id="vehicleA" class="text-5xl vehicle-obj">🚗</div>
+                </div>
+                <div id="hudA" class="absolute left-2 top-1 text-[10px] font-mono text-cyan-300 bg-slate-900/80 px-2 rounded backdrop-blur z-20">s: 0m | v: 0m/s</div>
+            </div>
+
+            <div class="relative h-20 w-full bg-slate-800/50 rounded-lg track-line border-l-4 border-fuchsia-500 overflow-hidden" id="laneB">
+                <div id="wrapperB" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 transition-all duration-75">
+                    <div id="vehicleB" class="text-5xl vehicle-obj">🚀</div>
+                </div>
+                <div id="hudB" class="absolute left-2 top-1 text-[10px] font-mono text-fuchsia-300 bg-slate-900/80 px-2 rounded backdrop-blur z-20">s: 0m | v: 0m/s</div>
+            </div>
+            
+            <div class="absolute right-6 top-16 bottom-6 w-2 bg-gradient-to-b from-white via-black to-white opacity-50 flex flex-col z-0">
+                <div class="h-4 w-full bg-black"></div><div class="h-4 w-full bg-white"></div><div class="h-4 w-full bg-black"></div><div class="h-4 w-full bg-white"></div><div class="h-4 w-full bg-black"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-cyan-500 p-5 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-cyan-400 flex items-center gap-2"><i data-lucide="car"></i> Kendaraan A</h3>
+                    <select id="iconA" onchange="updateVehicleIcon('A')" class="bg-slate-900 text-xl border border-slate-700 rounded p-1 outline-none">
+                        <option value="🚗">🚗 Mobil</option>
+                        <option value="🏍️">🏍️ Motor</option>
+                        <option value="🚀">🚀 Roket</option>
+                        <option value="🚲">🚲 Sepeda</option>
+                        <option value="🏃">🏃 Lari</option>
+                    </select>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase">Jenis Gerak</label>
+                        <select id="typeA" onchange="toggleInputs('A')" class="w-full mt-1 bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm outline-none focus:border-cyan-500">
+                            <option value="glb">GLB (Kecepatan Tetap)</option>
+                            <option value="glbb">GLBB (Punya Percepatan)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-xs font-bold text-slate-400">Kecepatan Awal (\(v_0\))</label><span id="valV0A" class="text-xs text-cyan-300 font-mono font-bold">10 m/s</span></div>
+                        <input type="range" id="v0A" min="0" max="50" value="10" class="slider-cyan mt-2" oninput="updateVal('V0A', this.value, 'm/s')">
+                    </div>
+                    <div id="boxAccelA" class="opacity-30 pointer-events-none transition-opacity">
+                        <div class="flex justify-between"><label class="text-xs font-bold text-slate-400">Percepatan (\(a\))</label><span id="valAA" class="text-xs text-cyan-300 font-mono font-bold">0 m/s²</span></div>
+                        <input type="range" id="aA" min="-10" max="10" value="0" step="0.5" class="slider-cyan mt-2" oninput="updateVal('AA', this.value, 'm/s²')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border-t-4 border-t-fuchsia-500 p-5 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-fuchsia-400 flex items-center gap-2"><i data-lucide="rocket"></i> Kendaraan B</h3>
+                    <select id="iconB" onchange="updateVehicleIcon('B')" class="bg-slate-900 text-xl border border-slate-700 rounded p-1 outline-none">
+                        <option value="🚀">🚀 Roket</option>
+                        <option value="🏍️">🏍️ Motor</option>
+                        <option value="🚗">🚗 Mobil</option>
+                        <option value="🚲">🚲 Sepeda</option>
+                        <option value="🏃">🏃 Lari</option>
+                    </select>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase">Jenis Gerak</label>
+                        <select id="typeB" onchange="toggleInputs('B')" class="w-full mt-1 bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-sm outline-none focus:border-fuchsia-500">
+                            <option value="glbb">GLBB (Punya Percepatan)</option>
+                            <option value="glb">GLB (Kecepatan Tetap)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-xs font-bold text-slate-400">Kecepatan Awal (\(v_0\))</label><span id="valV0B" class="text-xs text-fuchsia-300 font-mono font-bold">0 m/s</span></div>
+                        <input type="range" id="v0B" min="0" max="50" value="0" class="slider-fuchsia mt-2" oninput="updateVal('V0B', this.value, 'm/s')">
+                    </div>
+                    <div id="boxAccelB" class="transition-opacity">
+                        <div class="flex justify-between"><label class="text-xs font-bold text-slate-400">Percepatan (\(a\))</label><span id="valAB" class="text-xs text-fuchsia-300 font-mono font-bold">2 m/s²</span></div>
+                        <input type="range" id="aB" min="-10" max="10" value="2" step="0.5" class="slider-fuchsia mt-2" oninput="updateVal('AB', this.value, 'm/s²')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <h3 class="font-bold text-slate-300 mb-4 flex items-center gap-2"><i data-lucide="settings-2"></i> Pengaturan Sistem</h3>
+                <div class="mb-6">
+                    <div class="flex justify-between"><label class="text-xs font-bold text-slate-400">Batas Waktu Simulasi</label><span id="valTime" class="text-xs text-yellow-400 font-mono font-bold">10 s</span></div>
+                    <input type="range" id="maxTime" min="5" max="30" value="10" class="mt-2" oninput="updateVal('Time', this.value, 's')">
+                </div>
+                
+                <div class="mt-auto grid grid-cols-2 gap-3">
+                    <button id="btnStart" onclick="startSim()" class="col-span-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black py-3 rounded-xl shadow-lg shadow-green-900/50 flex justify-center items-center gap-2 transition transform active:scale-95">
+                        <i data-lucide="play" width="20"></i> MULAI BALAPAN
+                    </button>
+                    <button id="btnPause" onclick="pauseSim()" disabled class="bg-slate-700 text-slate-400 font-bold py-2 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 cursor-not-allowed">
+                        <i data-lucide="pause" width="16"></i> PAUSE
+                    </button>
+                    <button onclick="resetSim()" class="bg-slate-700 text-white font-bold py-2 rounded-xl hover:bg-red-600 transition flex justify-center items-center gap-2">
+                        <i data-lucide="rotate-ccw" width="16"></i> RESET
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Grafik Jarak terhadap Waktu (s-t)</h3>
+                <div class="w-full h-64"><canvas id="chartDistance"></canvas></div>
+            </div>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Grafik Kecepatan terhadap Waktu (v-t)</h3>
+                <div class="w-full h-64"><canvas id="chartVelocity"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Tabel Hasil Pengamatan</h3>
+                <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                    <i data-lucide="file-down" width="14"></i> Export PDF
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-64 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-sm" id="dataTable">
+                    <thead class="bg-slate-900 text-slate-400 sticky top-0">
+                        <tr>
+                            <th class="p-3 border-b border-slate-700">Waktu (s)</th>
+                            <th class="p-3 border-b border-slate-700 text-cyan-400">Jarak A (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-cyan-400">Kecep. A (m/s)</th>
+                            <th class="p-3 border-b border-slate-700 text-fuchsia-400">Jarak B (m)</th>
+                            <th class="p-3 border-b border-slate-700 text-fuchsia-400">Kecep. B (m/s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                    </tbody>
+                </table>
+            </div>
+            <p id="insightText" class="mt-4 text-center text-sm font-bold text-yellow-400 animate-pulse"></p>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // 1. STATE & VARIABLES
+        let simTime = 0;
+        let isRunning = false;
+        let animFrame;
+        let maxTrackDistance = 100;
+        let dataHistory = []; 
+        let cDist, cVel; 
+
+        // PENTING: Deklarasi variabel lengkap dengan wrapper-nya
+        const vA = { dom: document.getElementById('vehicleA'), wrapper: document.getElementById('wrapperA'), hud: document.getElementById('hudA'), s: 0, v: 0, v0: 0, a: 0, type: 'glb' };
+        const vB = { dom: document.getElementById('vehicleB'), wrapper: document.getElementById('wrapperB'), hud: document.getElementById('hudB'), s: 0, v: 0, v0: 0, a: 0, type: 'glbb' };
+
+        // 2. UI INTERACTIONS
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        function updateVal(id, val, unit) { document.getElementById('val' + id).innerText = `${val} ${unit}`; }
+
+        function toggleInputs(id) {
+            const type = document.getElementById('type' + id).value;
+            const box = document.getElementById('boxAccel' + id);
+            if(type === 'glb') {
+                box.classList.add('opacity-30', 'pointer-events-none');
+                document.getElementById('a' + id).value = 0;
+                updateVal('A' + id, 0, 'm/s²');
+            } else {
+                box.classList.remove('opacity-30', 'pointer-events-none');
+            }
+        }
+
+        function updateVehicleIcon(lane) {
+            const iconVal = document.getElementById('icon' + lane).value;
+            const vehicle = document.getElementById('vehicle' + lane);
+            vehicle.innerText = iconVal;
+            
+            vehicle.classList.remove('-scale-x-100', 'rotate-45');
+            if (iconVal === '🚀') {
+                vehicle.classList.add('rotate-45');
+            } else {
+                vehicle.classList.add('-scale-x-100');
+            }
+        }
+
+        // 3. CHART INITIALIZATION
+        function initCharts() {
+            const ctxD = document.getElementById('chartDistance').getContext('2d');
+            const ctxV = document.getElementById('chartVelocity').getContext('2d');
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+
+            cDist = new Chart(ctxD, {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'Kendaraan A', borderColor: '#06b6d4', data: [], pointRadius: 0, tension: 0.2, borderWidth: 2 },
+                    { label: 'Kendaraan B', borderColor: '#d946ef', data: [], pointRadius: 0, tension: 0.2, borderWidth: 2 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: {display: true, text: 'Jarak (m)'} }, x: { title: {display: true, text: 'Waktu (s)'} } }, animation: false }
+            });
+
+            cVel = new Chart(ctxV, {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'Kendaraan A', borderColor: '#06b6d4', data: [], pointRadius: 0, tension: 0.1, borderDash: [5, 5], borderWidth: 2 },
+                    { label: 'Kendaraan B', borderColor: '#d946ef', data: [], pointRadius: 0, tension: 0.1, borderDash: [5, 5], borderWidth: 2 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: {display: true, text: 'Kecepatan (m/s)'} }, x: { title: {display: true, text: 'Waktu (s)'} } }, animation: false }
+            });
+        }
+
+        // 4. PHYSICS ENGINE
+        function calculateMaxDistance(v0, a, t) { return (v0 * t) + (0.5 * a * Math.pow(t, 2)); }
+
+        function setupSimulation() {
+            vA.v0 = parseFloat(document.getElementById('v0A').value);
+            vA.a = document.getElementById('typeA').value === 'glb' ? 0 : parseFloat(document.getElementById('aA').value);
+            vB.v0 = parseFloat(document.getElementById('v0B').value);
+            vB.a = document.getElementById('typeB').value === 'glb' ? 0 : parseFloat(document.getElementById('aB').value);
+            
+            const tMax = parseFloat(document.getElementById('maxTime').value);
+
+            let maxA = calculateMaxDistance(vA.v0, vA.a, tMax);
+            let maxB = calculateMaxDistance(vB.v0, vB.a, tMax);
+            
+            maxTrackDistance = Math.max(10, maxA, maxB); 
+            document.getElementById('trackDistance').innerText = Math.round(maxTrackDistance) + "m";
+        }
+
+        // LOGIKA PENGEREMAN YANG DIPERBAIKI (TIDAK MUNDUR)
+        function updatePhysics(vehicle) {
+            let t = simTime;
+            
+            if (vehicle.a < 0 && vehicle.v0 > 0) {
+                let t_stop = -vehicle.v0 / vehicle.a;
+                if (t > t_stop) t = t_stop; // Waktu dibekukan saat berhenti
+            } 
+            else if (vehicle.a < 0 && vehicle.v0 === 0) {
+                t = 0; // Tidak bisa bergerak dari diam jika direm
+            }
+
+            vehicle.v = vehicle.v0 + (vehicle.a * t);
+            vehicle.s = (vehicle.v0 * t) + (0.5 * vehicle.a * Math.pow(t, 2));
+            
+            if(vehicle.s < 0) vehicle.s = 0; 
+            if(vehicle.v < 0) vehicle.v = 0; 
+        }
+
+        function renderFrame() {
+            let percentA = (vA.s / maxTrackDistance) * 95;
+            let percentB = (vB.s / maxTrackDistance) * 95;
+            
+            // Menggeser posisi menggunakan wrapper
+            vA.wrapper.style.left = `${Math.min(percentA, 95)}%`;
+            vB.wrapper.style.left = `${Math.min(percentB, 95)}%`;
+
+            // Efek motion blur (ke dom)
+            if(vA.v > 20) vA.dom.classList.add('motion-blur'); else vA.dom.classList.remove('motion-blur');
+            if(vB.v > 20) vB.dom.classList.add('motion-blur'); else vB.dom.classList.remove('motion-blur');
+
+            vA.hud.innerText = `s: ${vA.s.toFixed(1)}m | v: ${vA.v.toFixed(1)}m/s`;
+            vB.hud.innerText = `s: ${vB.s.toFixed(1)}m | v: ${vB.v.toFixed(1)}m/s`;
+            vA.hud.style.left = `calc(${Math.min(percentA, 95)}% + 50px)`;
+            vB.hud.style.left = `calc(${Math.min(percentB, 95)}% + 50px)`;
+        }
+
+        function logData() {
+            const tStr = simTime.toFixed(1);
+            
+            cDist.data.labels.push(tStr); cDist.data.datasets[0].data.push(vA.s); cDist.data.datasets[1].data.push(vB.s); cDist.update();
+            cVel.data.labels.push(tStr); cVel.data.datasets[0].data.push(vA.v); cVel.data.datasets[1].data.push(vB.v); cVel.update();
+            
+            dataHistory.push([tStr, vA.s.toFixed(2), vA.v.toFixed(2), vB.s.toFixed(2), vB.v.toFixed(2)]);
+            
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${tStr}</td>
+                <td class="p-2 border-b border-slate-700/50 text-cyan-400">${vA.s.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-cyan-500">${vA.v.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-fuchsia-400">${vB.s.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-fuchsia-500">${vB.v.toFixed(2)}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+        }
+
+        let lastLogTime = -1;
+
+        function animate() {
+            if (!isRunning) return;
+
+            const tMax = parseFloat(document.getElementById('maxTime').value);
+            simTime += 0.05; 
+            if(simTime > tMax) simTime = tMax;
+
+            document.getElementById('timerDisplay').innerText = simTime.toFixed(1) + " s";
+
+            updatePhysics(vA); updatePhysics(vB); renderFrame();
+
+            if (simTime - lastLogTime >= 0.5) { logData(); lastLogTime = simTime; }
+
+            if (simTime < tMax) { animFrame = requestAnimationFrame(animate); } 
+            else { finishSim(); }
+        }
+
+        // 5. BUTTON CONTROLS
+        function startSim() {
+            if(simTime === 0) {
+                setupSimulation();
+                dataHistory = []; document.getElementById('tableBody').innerHTML = '';
+                cDist.data.labels = []; cDist.data.datasets.forEach(d => d.data = []);
+                cVel.data.labels = []; cVel.data.datasets.forEach(d => d.data = []);
+                document.getElementById('insightText').innerText = '';
+            }
+            
+            isRunning = true;
+            document.getElementById('btnStart').disabled = true;
+            document.getElementById('btnStart').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnPause').disabled = false;
+            document.getElementById('btnPause').classList.remove('cursor-not-allowed', 'text-slate-400');
+            document.getElementById('btnPause').classList.add('text-white');
+            
+            animFrame = requestAnimationFrame(animate);
+        }
+
+        function pauseSim() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStart').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnStart').innerHTML = `<i data-lucide="play" width="20"></i> LANJUTKAN`;
+            document.getElementById('btnPause').disabled = true;
+            document.getElementById('btnPause').classList.add('cursor-not-allowed', 'text-slate-400');
+            lucide.createIcons();
+        }
+
+        function resetSim() {
+            isRunning = false; cancelAnimationFrame(animFrame);
+            simTime = 0; lastLogTime = -1;
+            vA.s = 0; vA.v = 0; vB.s = 0; vB.v = 0;
+            renderFrame();
+            
+            document.getElementById('timerDisplay').innerText = "0.0 s";
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStart').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnStart').innerHTML = `<i data-lucide="play" width="20"></i> MULAI BALAPAN`;
+            document.getElementById('btnPause').disabled = true;
+            document.getElementById('insightText').innerText = '';
+            lucide.createIcons(); initCharts(); 
+        }
+
+        function finishSim() {
+            pauseSim();
+            document.getElementById('btnStart').disabled = true;
+            document.getElementById('btnStart').innerHTML = `<i data-lucide="flag" width="20"></i> FINISH`;
+            
+            const diff = vA.s - vB.s; let txt = '';
+            if(Math.abs(diff) < 0.1) txt = "Seri! Kedua kendaraan menempuh jarak yang persis sama.";
+            else if (diff > 0) txt = `🏆 Kendaraan A memenangkan balapan dengan selisih jarak ${diff.toFixed(1)} meter!`;
+            else txt = `🏆 Kendaraan B memenangkan balapan dengan selisih jarak ${Math.abs(diff).toFixed(1)} meter!`;
+            
+            document.getElementById('insightText').innerText = txt; lucide.createIcons();
+        }
+
+        // 6. PDF EXPORT
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Jalankan simulasi terlebih dahulu.");
+            
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Praktikum Virtual Lab Fisika", 14, 20);
+            doc.setFontSize(12); doc.setFont("helvetica", "normal"); doc.text("Topik: Gerak Lurus (GLB & GLBB) - Race of Motion", 14, 28);
+            doc.setFontSize(10);
+            doc.text(`Tipe Kendaraan A: ${document.getElementById('typeA').value.toUpperCase()} (v0: ${vA.v0}, a: ${vA.a})`, 14, 38);
+            doc.text(`Tipe Kendaraan B: ${document.getElementById('typeB').value.toUpperCase()} (v0: ${vB.v0}, a: ${vB.a})`, 14, 44);
+            
+            doc.autoTable({ startY: 50, head: [['Waktu (s)', 'Jarak A (m)', 'Kecepatan A (m/s)', 'Jarak B (m)', 'Kecepatan B (m/s)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            doc.save("Laporan_Praktikum_GLB_GLBB.pdf");
+        }
+
+        // Setup Awal
+        toggleInputs('A'); toggleInputs('B'); updateVehicleIcon('A'); updateVehicleIcon('B'); initCharts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Pressure - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(255,255,255,0.8); border: 2px solid #0ea5e9;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        
+        #simCanvas { background: linear-gradient(to bottom, #0f172a 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; }
+        
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">🌊 Deep Pressure</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Tekanan Hidrostatis</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 rounded-lg text-sm font-bold text-cyan-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-cyan-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-cyan-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="flask-conical"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Pilih Jenis Fluida:</b> Air Murni, Minyak, atau Air Garam memiliki massa jenis (\(\rho\)) yang berbeda.</li>
+                    <li><b>Turunkan Sensor:</b> Geser slider kedalaman (\(h\)) untuk menenggelamkan sensor tekanan ke dasar tangki.</li>
+                    <li><b>Catat Data:</b> Klik tombol <b class="text-cyan-400">CATAT DATA</b> di setiap kedalaman tertentu untuk membentuk grafik tekanan secara manual layaknya eksperimen nyata.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-blue-400 mb-2">🔥 Fitur Spesial</h4>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li><b>Toggle Kebocoran:</b> Buka lubang pada dinding tangki dan amati semburan airnya (Hukum Torricelli). Semburan paling bawah akan melesat paling jauh karena tekanannya terbesar!</li>
+                        <li><b>Atmosfer:</b> Tambahkan gaya tekan udara luar (\(P_{atm}\)) untuk melihat tekanan mutlak.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-cyan-400 font-bold mb-2">Tekanan Hidrostatis (\(P_h\))</h3>
+                <p class="text-xs mb-2">Tekanan yang diakibatkan oleh gaya ada pada zat cair terhadap suatu luas bidang tekan, pada kedalaman tertentu.</p>
+                <div class="font-mono text-cyan-300 text-sm bg-slate-950 p-2 rounded text-center">\( P_h = \rho \cdot g \cdot h \)</div>
+                <p class="text-[10px] text-slate-500 mt-2">Keterangan: \(\rho\) = massa jenis (kg/m³), \(g\) = gravitasi (9.8 m/s²), \(h\) = kedalaman (m)</p>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-blue-400 font-bold mb-2">Tekanan Mutlak (\(P_{total}\))</h3>
+                <p class="text-xs mb-2">Jika wadah terbuka, udara di atas air (atmosfer) juga ikut menekan ke bawah sebesar 101.325 Pascal (1 atm).</p>
+                <div class="font-mono text-blue-300 text-sm bg-slate-950 p-2 rounded text-center">\( P_{total} = P_{atm} + P_h \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden flex flex-col">
+                <div class="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+                    <div class="glass-panel px-4 py-3 rounded-xl border border-slate-600 text-right min-w-[200px]">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pembacaan Sensor Tekanan</p>
+                        <p class="font-mono text-3xl text-cyan-400 font-black drop-shadow-md" id="hudPressure">0 <span class="text-sm font-bold text-slate-500">Pa</span></p>
+                        <p id="hudAtmInfo" class="text-[9px] text-slate-500 mt-1 hidden">+ Termasuk P_atm (101.325 Pa)</p>
+                    </div>
+                    
+                    <div id="challengeBox" class="hidden glass-panel px-4 py-3 rounded-xl border border-yellow-500/50 text-right min-w-[200px] bg-yellow-900/20">
+                        <p class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider mb-1">🎯 Target Tantangan</p>
+                        <p class="font-mono text-sm text-white">Temukan Tekanan:</p>
+                        <p class="font-mono text-xl text-yellow-400 font-bold" id="targetPressure">50,000 Pa</p>
+                    </div>
+                </div>
+
+                <div class="absolute top-4 left-4 z-20 glass-panel px-3 py-2 rounded-lg">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Kedalaman Sensor</p>
+                    <p class="font-mono text-xl text-white font-bold" id="hudDepth">0.0 m</p>
+                </div>
+
+                <canvas id="simCanvas" width="800" height="500" class="w-full h-full flex-1"></canvas>
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-cyan-500 p-5 shadow-lg">
+                    <h3 class="font-bold text-cyan-400 flex items-center gap-2 mb-4"><i data-lucide="sliders"></i> Konfigurasi Tangki</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-400 mb-1 block uppercase">Isi Fluida (Massa Jenis \(\rho\))</label>
+                            <select id="fluidType" onchange="updateFluids()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2.5 text-sm outline-none focus:border-cyan-500">
+                                <option value="1000">💧 Air Murni (1000 kg/m³)</option>
+                                <option value="800">🛢️ Minyak (800 kg/m³)</option>
+                                <option value="1025">🌊 Air Garam Laut (1025 kg/m³)</option>
+                                <option value="13600">🌡️ Raksa Cair (13,600 kg/m³) - Sangat Berat!</option>
+                            </select>
+                        </div>
+                        
+                        <div class="pt-2 border-t border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <label class="text-sm font-bold text-slate-300">Kedalaman Sensor (\(h\))</label>
+                                <span id="valDepth" class="text-sm text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2 py-0.5 rounded">0.0 m</span>
+                            </div>
+                            <input type="range" id="inputDepth" min="0" max="20" value="0" step="0.5" oninput="updateControls()">
+                        </div>
+
+                        <div class="pt-2 grid grid-cols-1 gap-2 border-t border-slate-700 mt-2">
+                            <label class="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-700/50 rounded-lg transition">
+                                <span class="text-sm font-bold text-slate-300"><i data-lucide="cloud" class="inline w-4 h-4 mr-1 text-slate-400"></i> Buka Penutup (P_atm)</span>
+                                <input type="checkbox" id="toggleAtm" onchange="updateControls()" class="w-4 h-4 accent-cyan-500">
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-700/50 rounded-lg transition">
+                                <span class="text-sm font-bold text-slate-300"><i data-lucide="droplet" class="inline w-4 h-4 mr-1 text-blue-400"></i> Simulasi Lubang Bocor</span>
+                                <input type="checkbox" id="toggleLeak" onchange="toggleLeaks()" class="w-4 h-4 accent-blue-500">
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-700/50 rounded-lg transition border border-yellow-500/30 bg-yellow-900/10">
+                                <span class="text-sm font-bold text-yellow-400"><i data-lucide="target" class="inline w-4 h-4 mr-1"></i> Mode Tantangan</span>
+                                <input type="checkbox" id="toggleChallenge" onchange="startChallenge()" class="w-4 h-4 accent-yellow-500">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex-1 flex flex-col justify-center">
+                    <button id="btnRecord" onclick="recordData()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black py-4 rounded-xl shadow-lg shadow-cyan-900/50 flex justify-center items-center gap-2 transition transform active:scale-95 text-lg tracking-wider mb-3">
+                        <i data-lucide="clipboard-pen" width="20"></i> CATAT DATA SENSOR
+                    </button>
+                    
+                    <button onclick="resetData()" class="w-full bg-slate-700 text-slate-300 font-bold py-2 rounded-xl hover:bg-slate-600 transition flex justify-center items-center gap-2 text-sm">
+                        <i data-lucide="trash-2" width="16"></i> Hapus Semua Data Rekaman
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg flex flex-col">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 text-center">Grafik Hubungan Tekanan (P) terhadap Kedalaman (h)</h3>
+                <div class="w-full flex-1 min-h-[250px]"><canvas id="chartPressure"></canvas></div>
+            </div>
+            
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Tabel Laporan Praktikum</h3>
+                    <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                        <i data-lucide="file-down" width="14"></i> Export PDF
+                    </button>
+                </div>
+                <div class="overflow-y-auto max-h-[250px] custom-scrollbar border border-slate-700 rounded-lg">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 border-b border-slate-700">No.</th>
+                                <th class="p-3 border-b border-slate-700 text-cyan-400">Kedalaman (m)</th>
+                                <th class="p-3 border-b border-slate-700 text-slate-300">Massa Jenis (kg/m³)</th>
+                                <th class="p-3 border-b border-slate-700 text-blue-400">Tekanan (Pa)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                            <tr><td colspan="4" class="p-4 text-center text-slate-500 font-sans">Belum ada data. Geser sensor dan klik "Catat Data".</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // Konstanta Visual & Fisika
+        const MAX_DEPTH_REAL = 20; // meter
+        const g = 9.8; // m/s2
+        const P_ATM = 101325; // Pascal
+        
+        // State
+        let currentDepth = 0; // m
+        let currentRho = 1000; // kg/m3
+        let isAtmActive = false;
+        let isLeakActive = false;
+        let isChallengeMode = false;
+        let challengeTargetP = 0;
+        
+        let pressurePa = 0;
+        
+        // Data Rekaman
+        let dataHistory = [];
+        let recordCount = 0;
+        let chartP;
+
+        // Visual Scales
+        // Menggambar Tangki dari Y=100 s.d Y=450 (Height = 350px)
+        const tankTopY = 80;
+        const tankBottomY = 430;
+        const tankH = tankBottomY - tankTopY; // 350px
+        const tankW = 300;
+        const tankX = 250; // Posisi X tengah
+        const pxPerMeter = tankH / MAX_DEPTH_REAL; // pixel per meter
+
+        // Fluid Colors
+        const FLUID_COLORS = {
+            '1000': { top: 'rgba(56, 189, 248, 0.5)', bottom: 'rgba(2, 132, 199, 0.9)', leak: '#0ea5e9' }, // Air
+            '800':  { top: 'rgba(253, 224, 71, 0.5)', bottom: 'rgba(202, 138, 4, 0.9)', leak: '#eab308' }, // Minyak
+            '1025': { top: 'rgba(45, 212, 191, 0.5)', bottom: 'rgba(15, 118, 110, 0.9)', leak: '#14b8a6' }, // Air Garam
+            '13600':{ top: 'rgba(148, 163, 184, 0.7)', bottom: 'rgba(51, 65, 85, 0.95)', leak: '#64748b' } // Raksa
+        };
+
+        // --- CHARTS INITIALIZATION ---
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            chartP = new Chart(document.getElementById('chartPressure').getContext('2d'), {
+                type: 'scatter', // Pakai Scatter agar titik h tidak harus berurutan teratur
+                data: { datasets: [{ label: 'Tekanan (Pa)', borderColor: '#0ea5e9', backgroundColor: '#38bdf8', data: [], pointRadius: 5, showLine: true, tension: 0.1, borderWidth: 2 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { 
+                        y: { title: {display: true, text: 'Tekanan (Pa)'}, beginAtZero: true },
+                        x: { title: {display: true, text: 'Kedalaman (m)'}, beginAtZero: true, max: 20 }
+                    } 
+                }
+            });
+        }
+
+        // --- CORE PHYSICS & LOGIC ---
+        function updateFluids() {
+            currentRho = parseFloat(document.getElementById('fluidType').value);
+            updateControls();
+        }
+
+        function toggleLeaks() {
+            isLeakActive = document.getElementById('toggleLeak').checked;
+            updateControls();
+        }
+
+        function startChallenge() {
+            isChallengeMode = document.getElementById('toggleChallenge').checked;
+            const box = document.getElementById('challengeBox');
+            if(isChallengeMode) {
+                // Generate Target Tekanan (Random antara 20.000 - 150.000 Pa, kelipatan 5000)
+                challengeTargetP = (Math.floor(Math.random() * 26) + 4) * 5000; 
+                document.getElementById('targetPressure').innerText = challengeTargetP.toLocaleString() + " Pa";
+                box.classList.remove('hidden');
+                
+                // Matikan ATM biar hitungan siswa gampang murni P = rho * g * h
+                document.getElementById('toggleAtm').checked = false;
+                isAtmActive = false;
+                document.getElementById('hudAtmInfo').classList.add('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+            updateControls();
+        }
+
+        function updateControls() {
+            currentDepth = parseFloat(document.getElementById('inputDepth').value);
+            isAtmActive = document.getElementById('toggleAtm').checked;
+
+            document.getElementById('valDepth').innerText = currentDepth.toFixed(1) + " m";
+            document.getElementById('hudDepth').innerText = currentDepth.toFixed(1) + " m";
+
+            // Hitung Tekanan P = P0 + rho*g*h
+            let p_hidro = currentRho * g * currentDepth;
+            pressurePa = isAtmActive ? (P_ATM + p_hidro) : p_hidro;
+
+            document.getElementById('hudPressure').innerHTML = pressurePa.toLocaleString(undefined, {maximumFractionDigits:0}) + ' <span class="text-sm font-bold text-slate-500">Pa</span>';
+            
+            if(isAtmActive) document.getElementById('hudAtmInfo').classList.remove('hidden');
+            else document.getElementById('hudAtmInfo').classList.add('hidden');
+
+            // Cek Kemenangan Challenge (Tanpa harus klik catat)
+            if(isChallengeMode) {
+                let diff = Math.abs(pressurePa - challengeTargetP);
+                if(diff < 1000) { // Toleransi 1000 Pa
+                    document.getElementById('targetPressure').innerHTML = "BINGO! 🎯 TEPAT!";
+                    document.getElementById('targetPressure').classList.replace('text-yellow-400', 'text-green-400');
+                    document.getElementById('challengeBox').classList.replace('border-yellow-500/50', 'border-green-500/80');
+                } else {
+                    document.getElementById('targetPressure').innerText = challengeTargetP.toLocaleString() + " Pa";
+                    document.getElementById('targetPressure').classList.replace('text-green-400', 'text-yellow-400');
+                    document.getElementById('challengeBox').classList.replace('border-green-500/80', 'border-yellow-500/50');
+                }
+            }
+        }
+
+        // --- RENDER VISUAL ---
+        // Variabel untuk animasi air keluar
+        let timeRender = 0;
+
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            timeRender += 0.05;
+
+            // DRAW BACKGROUND GRID (Skala Kedalaman)
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 1; ctx.beginPath();
+            for(let i=0; i<=MAX_DEPTH_REAL; i+=2) {
+                let y = tankTopY + (i * pxPerMeter);
+                ctx.moveTo(tankX - 40, y); ctx.lineTo(tankX + tankW + 40, y);
+                ctx.fillStyle = '#64748b'; ctx.font = '10px monospace';
+                ctx.fillText(i + 'm', tankX - 35, y - 5);
+            }
+            ctx.stroke();
+
+            // DRAW FLUID GRADIENT
+            const colors = FLUID_COLORS[currentRho.toString()];
+            let fluidGradient = ctx.createLinearGradient(0, tankTopY, 0, tankBottomY);
+            fluidGradient.addColorStop(0, colors.top);
+            fluidGradient.addColorStop(1, colors.bottom);
+
+            ctx.fillStyle = fluidGradient;
+            ctx.fillRect(tankX, tankTopY, tankW, tankH);
+
+            // TANK BORDERS
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(tankX, tankTopY - 20); // Dinding Kiri
+            ctx.lineTo(tankX, tankBottomY);
+            ctx.lineTo(tankX + tankW, tankBottomY); // Dasar
+            ctx.lineTo(tankX + tankW, tankTopY - 20); // Dinding Kanan
+            ctx.stroke();
+
+            // DRAW WATER WAVES (Permukaan Atas)
+            ctx.beginPath();
+            ctx.strokeStyle = colors.leak; ctx.lineWidth = 2;
+            for(let x = 0; x <= tankW; x += 10) {
+                let yWave = tankTopY + Math.sin(x*0.05 + timeRender)*3;
+                if(x===0) ctx.moveTo(tankX + x, yWave);
+                else ctx.lineTo(tankX + x, yWave);
+            }
+            ctx.stroke();
+
+            // DRAW SENSOR PROBE
+            let sensorY = tankTopY + (currentDepth * pxPerMeter);
+            let sensorX = tankX + tankW/2;
+            
+            // Kabel Sensor
+            ctx.beginPath(); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2;
+            ctx.moveTo(sensorX, 0); ctx.lineTo(sensorX, sensorY); ctx.stroke();
+            
+            // Body Sensor
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(sensorX - 10, sensorY - 15, 20, 20);
+            // Lampu Sensor Berkedip cepat jika dalam
+            let blinkSpeed = 1 + (currentDepth/5);
+            ctx.fillStyle = Math.sin(timeRender * blinkSpeed) > 0 ? '#ef4444' : '#7f1d1d';
+            ctx.beginPath(); ctx.arc(sensorX, sensorY - 5, 4, 0, Math.PI*2); ctx.fill();
+
+            // DRAW LEAKS (HUKUM TORRICELLI)
+            // v = sqrt(2gh). Range jatuhnya X = v * t_jatuh
+            if(isLeakActive) {
+                // Ada 3 lubang di dinding kanan (h=5m, 10m, 15m)
+                let holes = [5, 10, 15]; 
+                
+                holes.forEach(holeH => {
+                    let holeY = tankTopY + (holeH * pxPerMeter);
+                    let holeX = tankX + tankW;
+                    
+                    // Gambar Lubang
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(holeX - 2, holeY - 5, 6, 10);
+
+                    // Gambar Semburan Air (Parabola)
+                    let v_out = Math.sqrt(2 * g * holeH); // Hukum Torricelli
+                    // Skalakan v_out untuk canvas agar melengkung indah
+                    let visual_V = v_out * 4; 
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = colors.leak;
+                    ctx.lineWidth = 4;
+                    ctx.moveTo(holeX, holeY);
+
+                    // Trajectory plotting
+                    for(let tLine = 0; tLine < 2.0; tLine += 0.1) {
+                        // x = v * t
+                        let px = holeX + (visual_V * tLine);
+                        // y = 1/2 g t^2
+                        let py = holeY + (0.5 * 30 * tLine * tLine); // 30 is visual gravity multiplier
+                        
+                        if(py > canvas.height) break; // Kena tanah luar
+                        ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+                    
+                    // Label Kecepatan Semburan
+                    ctx.fillStyle = '#94a3b8'; ctx.font = '10px monospace';
+                    ctx.fillText(`v=${v_out.toFixed(1)}m/s`, holeX + 15, holeY - 10);
+                });
+            }
+
+            // Loop Animasi
+            animFrame = requestAnimationFrame(drawArena);
+        }
+
+        // --- DATA RECORDING ---
+        function recordData() {
+            recordCount++;
+            
+            // Update Grafik Scatter
+            chartP.data.datasets[0].data.push({ x: currentDepth, y: pressurePa });
+            // Sort data berdasarkan x (kedalaman) agar garis grafiknya lurus
+            chartP.data.datasets[0].data.sort((a,b) => a.x - b.x);
+            chartP.update();
+
+            // Save to array for PDF
+            let rhoName = document.getElementById('fluidType').options[document.getElementById('fluidType').selectedIndex].text.split(' ')[1];
+            dataHistory.push([recordCount, currentDepth.toFixed(1), currentRho, pressurePa.toFixed(0)]);
+
+            // Hapus pesan kosong jika ada
+            if(recordCount === 1) document.getElementById('tableBody').innerHTML = '';
+
+            // Update Tabel UI (Reverse order agar terbaru di atas)
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50">${recordCount}</td>
+                <td class="p-2 border-b border-slate-700/50 text-cyan-400 font-bold">${currentDepth.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-slate-300">${currentRho} (${rhoName})</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400 font-bold">${pressurePa.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+            </tr>`;
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+        }
+
+        function resetData() {
+            recordCount = 0;
+            dataHistory = [];
+            chartP.data.datasets[0].data = [];
+            chartP.update();
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500 font-sans">Belum ada data. Geser sensor dan klik "Catat Data".</td></tr>';
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data tercatat! Klik tombol CATAT DATA SENSOR dulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Virtual Lab: Tekanan Hidrostatis", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Status Tekanan Atmosfer : ${isAtmActive ? 'AKTIF (Wadah Terbuka)' : 'TIDAK AKTIF (Hanya Tekanan Fluida)'}`, 14, 30);
+            doc.text(`Tujuan Eksperimen : Mengetahui hubungan kedalaman terhadap tekanan fluida.`, 14, 36);
+            
+            doc.autoTable({ startY: 45, head: [['No.', 'Kedalaman h (m)', 'Massa Jenis Cairan (kg/m3)', 'Tekanan (Pascal)']], body: dataHistory, theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            // Auto Insight di bawah tabel
+            let finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFont("helvetica", "italic");
+            doc.text("Kesimpulan: Tekanan hidrostatis berbanding lurus dengan kedalaman dan massa jenis zat cair.", 14, finalY);
+
+            doc.save("Laporan_Tekanan_Hidrostatis.pdf");
+        }
+
+        // Init App
+        initCharts();
+        updateControls();
+        drawArena(); // Start Animation Loop
+    </script>
+</body>
+</html>

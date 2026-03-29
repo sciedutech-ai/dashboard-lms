@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit Builder - Virtual Lab Fisika</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #ffffff; cursor: pointer; margin-top: -7px; box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            border: 2px solid #eab308;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        .slider-yellow::-webkit-slider-thumb { border-color: #eab308; background: #eab308; box-shadow: 0 0 15px #eab308; }
+        .slider-blue::-webkit-slider-thumb { border-color: #3b82f6; background: #3b82f6; box-shadow: 0 0 15px #3b82f6; }
+
+        #simCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); width: 100%; height: auto; border-radius: 1rem; }
+        
+        .radio-btn:checked + label { border-color: #eab308; background-color: rgba(234, 179, 8, 0.2); color: #fde047; box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
+        
+        .glass-hud { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+
+        .shake-animation { animation: shake 0.3s infinite; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(-3px,2px); } 50% { transform: translate(3px,-2px); } 75% { transform: translate(-3px,-2px); } 100% { transform: translate(0,0); } }
+    </style>
+</head>
+<body class="font-sans flex flex-col min-h-screen">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-xl">
+        <div class="flex items-center gap-4">
+            <button onclick="window.close()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition" title="Tutup Lab">
+                <i data-lucide="x" width="20"></i>
+            </button>
+            <div>
+                <h1 class="font-black text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 tracking-tight">💡 Circuit Builder</h1>
+                <p class="text-xs text-slate-400 font-medium">Virtual Lab Fisika • Rangkaian Seri & Paralel</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="togglePanel('guidePanel')" class="flex items-center gap-2 px-3 py-2 bg-yellow-600/20 hover:bg-yellow-600/40 border border-yellow-500/30 rounded-lg text-sm font-bold text-yellow-400 transition">
+                <i data-lucide="help-circle" width="16"></i> <span class="hidden md:block">Petunjuk</span>
+            </button>
+            <button onclick="togglePanel('theoryPanel')" class="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold text-slate-300 transition">
+                <i data-lucide="book-open" width="16"></i> <span class="hidden md:block">Teori Dasar</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="guidePanel" class="hidden bg-slate-800 border-b border-yellow-500/30 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('guidePanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto text-sm text-slate-300">
+            <h3 class="text-yellow-400 font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="gamepad-2"></i> Petunjuk Eksperimen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ul class="list-disc list-inside space-y-2">
+                    <li><b>Pilih Topologi:</b> Rangkaian SERI (1 Jalur) atau PARALEL (Bercabang).</li>
+                    <li><b>Atur Sumber:</b> Tentukan Tegangan Baterai (\(V\)).</li>
+                    <li><b>Atur Beban:</b> Ubah nilai Hambatan (\(R\)) pada masing-masing lampu. Kamu juga bisa menambah/menghapus jumlah lampu!</li>
+                    <li>Klik <b>Saklar Utama</b> untuk mengalirkan arus listrik.</li>
+                </ul>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-red-400 mb-2">⚠️ HATI-HATI SEKRING PUTUS!</h4>
+                    <p>Sistem ini dilengkapi <b>Sekring Pengaman 10 Ampere</b>. Jika kamu membuat Hambatan Total (\(R_{eq}\)) terlalu kecil saat Tegangan tinggi, Arus akan melonjak dan membakar sekring! Jika putus, klik tombol RESET.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="theoryPanel" class="hidden bg-slate-800 border-b border-slate-700 p-6 shadow-inner relative z-40">
+        <button onclick="togglePanel('theoryPanel')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" width="20"></i></button>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-yellow-400 font-bold mb-2">Hukum Ohm</h3>
+                <p class="text-xs mb-2">Kuat arus (\(I\)) berbanding lurus dengan Tegangan (\(V\)) dan berbanding terbalik dengan Hambatan (\(R\)).</p>
+                <div class="font-mono text-yellow-300 text-sm bg-slate-950 p-2 rounded text-center">\( V = I \times R \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-blue-400 font-bold mb-2">Rangkaian Seri</h3>
+                <p class="text-xs mb-2">Disusun satu jalur. Arus di setiap titik sama besar. Jika satu lampu putus, semua mati.</p>
+                <div class="font-mono text-blue-300 text-xs bg-slate-950 p-2 rounded">\( R_{eq} = R_1 + R_2 + ... \)<br>\( I_{total} = I_1 = I_2 \)</div>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-green-400 font-bold mb-2">Rangkaian Paralel</h3>
+                <p class="text-xs mb-2">Disusun bercabang. Tegangan di tiap cabang sama besar. Arus terbagi ke tiap cabang.</p>
+                <div class="font-mono text-green-300 text-xs bg-slate-950 p-2 rounded">\( \frac{1}{R_{eq}} = \frac{1}{R_1} + \frac{1}{R_2} + ... \)<br>\( V_{total} = V_1 = V_2 \)</div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl relative overflow-hidden flex flex-col h-[500px]">
+                
+                <div class="absolute top-4 left-4 z-20 glass-hud px-5 py-3 rounded-xl border-l-4 border-l-emerald-500 shadow-lg min-w-[180px]">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><i data-lucide="activity" width="12"></i> Multimeter Digital</p>
+                    <div class="mt-2 space-y-1">
+                        <div class="flex justify-between"><span class="text-xs text-slate-300">Tegangan (V)</span><span class="font-mono font-bold text-yellow-400" id="meterV">0.0 V</span></div>
+                        <div class="flex justify-between"><span class="text-xs text-slate-300">Arus Total (I)</span><span class="font-mono font-bold text-blue-400" id="meterI">0.00 A</span></div>
+                        <div class="flex justify-between"><span class="text-xs text-slate-300">Hambatan (R_eq)</span><span class="font-mono font-bold text-red-400" id="meterR">0.0 Ω</span></div>
+                        <div class="flex justify-between border-t border-slate-700 pt-1 mt-1"><span class="text-xs text-slate-300">Daya Listrik (P)</span><span class="font-mono font-bold text-emerald-400" id="meterP">0.0 W</span></div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-4 right-4 z-20 flex flex-col gap-3 items-end">
+                    <div id="fuseBox" class="glass-hud px-4 py-2 rounded-lg border border-slate-600 text-center flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-300 uppercase">Sekring (10A)</span>
+                        <div id="fuseIndicator" class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+                    </div>
+
+                    <button id="btnSwitch" onclick="toggleSwitch()" class="bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 border border-slate-600 text-white font-black px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 transition transform active:scale-95">
+                        <div id="switchLight" class="w-4 h-4 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444]"></div>
+                        <span id="switchText" class="tracking-wider">POWER: OFF</span>
+                    </button>
+                </div>
+
+                <div id="alertFuse" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-center opacity-0 transition-opacity duration-300 pointer-events-none drop-shadow-2xl">
+                    <span class="text-white font-black text-3xl md:text-5xl bg-red-600/90 px-8 py-4 rounded-2xl border-4 border-red-400 block shake-animation mb-4">💥 SEKRING PUTUS!</span>
+                    <p class="text-slate-200 bg-slate-900/80 px-4 py-2 rounded-lg font-bold">Korsleting: Arus melebihi batas 10 Ampere.</p>
+                </div>
+
+                <canvas id="simCanvas" width="800" height="500" class="w-full h-full flex-1"></canvas>
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-4">
+                
+                <div class="bg-slate-800 rounded-2xl border-t-4 border-t-blue-500 p-5 shadow-lg">
+                    <h3 class="font-bold text-blue-400 flex items-center gap-2 mb-4"><i data-lucide="layout-template"></i> Arsitektur Sirkuit</h3>
+                    
+                    <div class="flex gap-2 bg-slate-900 p-1 rounded-xl border border-slate-700 mb-6">
+                        <div class="w-1/2">
+                            <input type="radio" name="topology" id="tSeri" value="series" class="hidden radio-btn" checked onchange="updatePhysics()">
+                            <label for="tSeri" class="w-full block text-center py-2 rounded-lg text-sm font-bold text-slate-400 cursor-pointer transition">Seri (1 Jalur)</label>
+                        </div>
+                        <div class="w-1/2">
+                            <input type="radio" name="topology" id="tPara" value="parallel" class="hidden radio-btn" onchange="updatePhysics()">
+                            <label for="tPara" class="w-full block text-center py-2 rounded-lg text-sm font-bold text-slate-400 cursor-pointer transition">Paralel (Cabang)</label>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700 mb-4">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-bold text-slate-300 flex items-center gap-1"><i data-lucide="battery-charging" width="16" class="text-yellow-400"></i> Baterai Utama (V)</label>
+                            <span id="valV" class="text-sm text-yellow-400 font-mono font-bold bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">12 V</span>
+                        </div>
+                        <input type="range" id="inputV" min="1.5" max="24" value="12" step="1.5" class="slider-yellow w-full" oninput="updatePhysics()">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-xs font-bold text-slate-400 uppercase">Komponen Beban (Lampu)</label>
+                            <div class="flex gap-1">
+                                <button onclick="addBulb()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded text-xs font-bold transition">+</button>
+                                <button onclick="removeBulb()" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded text-xs font-bold transition">-</button>
+                            </div>
+                        </div>
+
+                        <div id="bulbsContainer" class="space-y-3 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 shadow-lg flex-1 flex flex-col justify-end gap-3">
+                    <button onclick="recordData()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3 rounded-xl shadow-lg flex justify-center items-center gap-2 transition transform active:scale-95 text-sm">
+                        <i data-lucide="clipboard-pen" width="18"></i> CATAT PENGUKURAN
+                    </button>
+                    
+                    <button onclick="resetFuseAndCircuit()" class="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition flex justify-center items-center gap-2 text-sm border border-slate-600">
+                        <i data-lucide="refresh-cw" width="16"></i> Ganti Sekring / Reset Lab
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <h3 class="text-sm font-bold text-slate-300 mb-4 text-center border-b border-slate-700 pb-2">Grafik Hukum Ohm (V vs I)</h3>
+                <div class="w-full flex-1 min-h-[200px]"><canvas id="chartVI"></canvas></div>
+                <p class="text-center text-[10px] text-slate-500 mt-2">Sumbu X: Tegangan (V) | Sumbu Y: Arus (A)</p>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 shadow-lg flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-300 flex items-center gap-2"><i data-lucide="table"></i> Rekam Jejak Multimeter</h3>
+                    <button onclick="exportToPDF()" class="bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 transition flex items-center gap-2">
+                        <i data-lucide="file-down" width="14"></i> Export PDF
+                    </button>
+                </div>
+                <div class="overflow-y-auto flex-1 max-h-[220px] custom-scrollbar border border-slate-700 rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead class="bg-slate-900 text-slate-400 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 border-b border-slate-700">Topologi</th>
+                                <th class="p-3 border-b border-slate-700 text-yellow-400">V (Volt)</th>
+                                <th class="p-3 border-b border-slate-700 text-red-400">R_eq (Ω)</th>
+                                <th class="p-3 border-b border-slate-700 text-blue-400">I_tot (A)</th>
+                                <th class="p-3 border-b border-slate-700 text-emerald-400">Daya (W)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="text-slate-300 divide-y divide-slate-700/50 font-mono">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">Nyalakan sirkuit lalu klik "Catat Pengukuran".</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        
+        // --- UI PANELS ---
+        function togglePanel(panelId) {
+            const p = document.getElementById(panelId);
+            const isHidden = p.classList.contains('hidden');
+            document.getElementById('guidePanel').classList.add('hidden');
+            document.getElementById('theoryPanel').classList.add('hidden');
+            if (isHidden) p.classList.remove('hidden');
+        }
+
+        // --- CANVAS ENGINE ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animFrame;
+        
+        // --- PHYSICS STATE ---
+        let isPowerOn = false;
+        let isFuseBlown = false;
+        const FUSE_LIMIT = 10.0; // Ampere
+        
+        let V = 12; // Voltage
+        let I_tot = 0; // Current Total
+        let R_eq = 0; // Equivalent Resistance
+        let P_tot = 0; // Power Total
+
+        // Bulbs Data: Default 2 bulbs
+        let bulbs = [ { id: 1, R: 10, I: 0, V: 0, P: 0 }, { id: 2, R: 10, I: 0, V: 0, P: 0 } ];
+        let topology = 'series';
+
+        // Data History for Table/Chart
+        let dataHistory = [];
+        let chartVI;
+        
+        // Animation State
+        let timeOffset = 0;
+
+        // --- INITIALIZATION ---
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = 'monospace';
+            chartVI = new Chart(document.getElementById('chartVI').getContext('2d'), {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'Seri (I vs V)', borderColor: '#0ea5e9', backgroundColor: '#38bdf8', data: [], pointRadius: 5, showLine: true, tension: 0.1, borderWidth: 2 },
+                    { label: 'Paralel (I vs V)', borderColor: '#f59e0b', backgroundColor: '#fcd34d', data: [], pointRadius: 5, showLine: true, tension: 0.1, borderWidth: 2 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { beginAtZero: true } } }
+            });
+        }
+
+        function renderBulbSliders() {
+            const container = document.getElementById('bulbsContainer');
+            container.innerHTML = bulbs.map((b, index) => `
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                    <div class="flex justify-between mb-2">
+                        <label class="text-xs font-bold text-slate-300">💡 Lampu ${index + 1} (Hambatan)</label>
+                        <span id="valR${b.id}" class="text-xs text-red-400 font-mono font-bold">${b.R} Ω</span>
+                    </div>
+                    <input type="range" min="1" max="50" value="${b.R}" class="slider-blue w-full" oninput="updateBulbResistance(${index}, this.value)">
+                </div>
+            `).join('');
+        }
+
+        // --- DYNAMIC CONTROLS ---
+        function addBulb() {
+            if(bulbs.length >= 4) return alert("Maksimal 4 lampu dalam simulasi ini!");
+            bulbs.push({ id: bulbs.length + 1, R: 10, I: 0, V: 0, P: 0 });
+            renderBulbSliders();
+            updatePhysics();
+        }
+
+        function removeBulb() {
+            if(bulbs.length <= 1) return alert("Minimal harus ada 1 lampu!");
+            bulbs.pop();
+            renderBulbSliders();
+            updatePhysics();
+        }
+
+        function updateBulbResistance(index, val) {
+            bulbs[index].R = parseFloat(val);
+            document.getElementById(`valR${bulbs[index].id}`).innerText = val + " Ω";
+            updatePhysics();
+        }
+
+        function toggleSwitch() {
+            if(isFuseBlown) return alert("Sekring Putus! Klik tombol Reset Lab di bawah.");
+            
+            isPowerOn = !isPowerOn;
+            const btn = document.getElementById('btnSwitch');
+            const txt = document.getElementById('switchText');
+            const lgt = document.getElementById('switchLight');
+
+            if(isPowerOn) {
+                btn.classList.replace('from-slate-700', 'from-emerald-700');
+                btn.classList.replace('to-slate-800', 'to-emerald-800');
+                btn.classList.replace('border-slate-600', 'border-emerald-500');
+                txt.innerText = "POWER: ON"; txt.classList.add('text-emerald-100');
+                lgt.classList.replace('bg-red-500', 'bg-emerald-400');
+                lgt.classList.replace('shadow-[0_0_10px_#ef4444]', 'shadow-[0_0_15px_#34d399]');
+            } else {
+                btn.classList.replace('from-emerald-700', 'from-slate-700');
+                btn.classList.replace('to-emerald-800', 'to-slate-800');
+                btn.classList.replace('border-emerald-500', 'border-slate-600');
+                txt.innerText = "POWER: OFF"; txt.classList.remove('text-emerald-100');
+                lgt.classList.replace('bg-emerald-400', 'bg-red-500');
+                lgt.classList.replace('shadow-[0_0_15px_#34d399]', 'shadow-[0_0_10px_#ef4444]');
+            }
+            updatePhysics();
+        }
+
+        // --- CORE CALCULATIONS ---
+        function updatePhysics() {
+            // Read Inputs
+            V = parseFloat(document.getElementById('inputV').value);
+            document.getElementById('valV').innerText = V + " V";
+            topology = document.querySelector('input[name="topology"]:checked').value;
+
+            // Calculate Equivalent Resistance (Req)
+            if (topology === 'series') {
+                R_eq = bulbs.reduce((sum, b) => sum + b.R, 0);
+            } else { // parallel
+                let inverseSum = bulbs.reduce((sum, b) => sum + (1 / b.R), 0);
+                R_eq = 1 / inverseSum;
+            }
+
+            // Calculate Total Current & Check Fuse
+            I_tot = V / R_eq;
+            
+            if (isPowerOn && I_tot > FUSE_LIMIT) {
+                blowFuse();
+                return;
+            }
+
+            // Calculate Individual Bulb Powers
+            P_tot = 0;
+            bulbs.forEach(b => {
+                if(isPowerOn && !isFuseBlown) {
+                    if (topology === 'series') {
+                        b.I = I_tot;
+                        b.V = b.I * b.R;
+                    } else { // parallel
+                        b.V = V;
+                        b.I = V / b.R;
+                    }
+                    b.P = b.V * b.I;
+                } else {
+                    b.I = 0; b.V = 0; b.P = 0;
+                }
+                P_tot += b.P;
+            });
+
+            // Update Multimeter HUD
+            let actual_I = (isPowerOn && !isFuseBlown) ? I_tot : 0;
+            let actual_P = (isPowerOn && !isFuseBlown) ? P_tot : 0;
+
+            document.getElementById('meterV').innerText = V.toFixed(1) + " V";
+            document.getElementById('meterI').innerText = actual_I.toFixed(2) + " A";
+            document.getElementById('meterR').innerText = R_eq.toFixed(1) + " Ω";
+            document.getElementById('meterP').innerText = actual_P.toFixed(1) + " W";
+        }
+
+        function blowFuse() {
+            isFuseBlown = true;
+            isPowerOn = false;
+            I_tot = 0; P_tot = 0;
+            bulbs.forEach(b => { b.I = 0; b.V = 0; b.P = 0; });
+
+            // UI Blow effect
+            document.getElementById('alertFuse').classList.remove('opacity-0');
+            document.getElementById('fuseIndicator').classList.replace('bg-emerald-500', 'bg-red-600');
+            document.getElementById('fuseIndicator').classList.replace('shadow-[0_0_8px_#10b981]', 'shadow-[0_0_15px_#dc2626]');
+            
+            // Force switch to OFF visually
+            document.getElementById('btnSwitch').classList.replace('from-emerald-700', 'from-slate-700');
+            document.getElementById('btnSwitch').classList.replace('to-emerald-800', 'to-slate-800');
+            document.getElementById('switchText').innerText = "SYSTEM DEAD";
+            document.getElementById('switchLight').classList.replace('bg-emerald-400', 'bg-slate-700');
+            document.getElementById('switchLight').classList.replace('shadow-[0_0_15px_#34d399]', 'shadow-none');
+
+            updatePhysics(); // Update HUD to 0
+        }
+
+        function resetFuseAndCircuit() {
+            isFuseBlown = false;
+            isPowerOn = false;
+            
+            document.getElementById('alertFuse').classList.add('opacity-0');
+            document.getElementById('fuseIndicator').classList.replace('bg-red-600', 'bg-emerald-500');
+            document.getElementById('fuseIndicator').classList.replace('shadow-[0_0_15px_#dc2626]', 'shadow-[0_0_8px_#10b981]');
+            
+            // Reset Switch to clean OFF state
+            const btn = document.getElementById('btnSwitch');
+            btn.classList.replace('border-emerald-500', 'border-slate-600');
+            document.getElementById('switchText').innerText = "POWER: OFF";
+            document.getElementById('switchLight').classList.replace('bg-slate-700', 'bg-red-500');
+            document.getElementById('switchLight').classList.add('shadow-[0_0_10px_#ef4444]');
+            
+            updatePhysics();
+        }
+
+        // --- RENDER VISUAL (CANVAS) ---
+        function drawArena() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Anim speed based on Current (I)
+            let animSpeed = 0;
+            if(isPowerOn && !isFuseBlown) animSpeed = I_tot * 2; // Semakin besar arus, elektron makin ngebut
+            timeOffset -= animSpeed; 
+
+            // Base Coordinates
+            const startX = 100; const endX = 700;
+            const topY = 100; const bottomY = 350;
+            
+            // DRAW WIRES & ELECTRON FLOW
+            ctx.lineJoin = "round";
+            
+            if (topology === 'series') {
+                // Rangkaian Seri: Satu loop kotak besar
+                
+                // 1. Draw Background Wires (Mati)
+                ctx.beginPath();
+                ctx.strokeStyle = '#334155'; ctx.lineWidth = 6;
+                ctx.moveTo(startX, bottomY - 30); // Dari Baterai Atas
+                ctx.lineTo(startX, topY);
+                ctx.lineTo(endX, topY);
+                ctx.lineTo(endX, bottomY);
+                ctx.lineTo(startX + 30, bottomY); // Ke Switch
+                ctx.stroke();
+
+                // 2. Draw Electrons (Hidup)
+                if(isPowerOn && !isFuseBlown) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#38bdf8'; // Glowing Blue
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([10, 15]); // Dash = titik elektron
+                    ctx.lineDashOffset = timeOffset;
+                    
+                    ctx.moveTo(startX, bottomY - 30); ctx.lineTo(startX, topY); ctx.lineTo(endX, topY); ctx.lineTo(endX, bottomY); ctx.lineTo(startX + 30, bottomY);
+                    
+                    ctx.stroke();
+                    ctx.setLineDash([]); // Reset
+                    
+                    // Add Outer Glow to Wires
+                    ctx.shadowColor = '#0ea5e9'; ctx.shadowBlur = 10;
+                    ctx.stroke(); ctx.shadowBlur = 0;
+                }
+
+                // 3. Draw Bulbs (Terdistribusi di Top Wire)
+                let gap = (endX - startX) / (bulbs.length + 1);
+                bulbs.forEach((b, i) => {
+                    drawBulb(startX + gap * (i + 1), topY, b);
+                });
+
+            } else {
+                // Rangkaian Paralel: Tangga cabang
+                
+                // Draw Main Outer Rails
+                ctx.beginPath(); ctx.strokeStyle = '#334155'; ctx.lineWidth = 6;
+                ctx.moveTo(startX, bottomY - 30); ctx.lineTo(startX, topY); // Kiri Naik
+                ctx.moveTo(startX, bottomY); ctx.lineTo(startX + 30, bottomY); // Bawah ke switch
+                
+                // Draw Branches
+                let gap = (endX - startX) / (bulbs.length);
+                let currentBranchX = startX;
+                
+                bulbs.forEach((b, i) => {
+                    currentBranchX += gap;
+                    // Horizontal rail
+                    ctx.lineTo(currentBranchX, topY);
+                    // Vertical drop (Branch)
+                    ctx.moveTo(currentBranchX, topY); ctx.lineTo(currentBranchX, bottomY);
+                    // Bottom horizontal return
+                    ctx.moveTo(currentBranchX, bottomY); ctx.lineTo(startX + 30, bottomY); // Kembali ke switch
+                    ctx.moveTo(currentBranchX, topY); // Reset to top for next loop
+                });
+                ctx.stroke();
+
+                // Draw Electrons (Flow)
+                if(isPowerOn && !isFuseBlown) {
+                    // Animasi Paralel agak tricky di canvas 2D standar, kita sederhanakan:
+                    // Main Rail Atas & Bawah
+                    ctx.beginPath(); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+                    ctx.setLineDash([10, 15]); ctx.lineDashOffset = timeOffset;
+                    ctx.moveTo(startX, bottomY - 30); ctx.lineTo(startX, topY); ctx.lineTo(currentBranchX, topY);
+                    ctx.moveTo(currentBranchX, bottomY); ctx.lineTo(startX + 30, bottomY);
+                    ctx.stroke();
+
+                    // Masing-masing Cabang (Kecepatan elektron harusnya beda per arus I, tapi disamakan demi estetika 60fps)
+                    bulbs.forEach((b, i) => {
+                        let bx = startX + gap * (i + 1);
+                        ctx.beginPath();
+                        ctx.lineDashOffset = timeOffset * (b.I / I_tot) * 2; // Offset beda berdasar arus cabang
+                        ctx.moveTo(bx, topY); ctx.lineTo(bx, bottomY);
+                        ctx.stroke();
+                    });
+                    
+                    ctx.setLineDash([]);
+                }
+
+                // Draw Bulbs (Di tengah tiap cabang vertikal)
+                currentBranchX = startX;
+                bulbs.forEach((b, i) => {
+                    currentBranchX += gap;
+                    drawBulb(currentBranchX, (topY + bottomY)/2, b);
+                });
+            }
+
+            // DRAW BATTERY (Kiri Bawah)
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(startX - 20, bottomY - 40, 40, 60);
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(startX - 20, bottomY - 40, 40, 15); // Kutub +
+            ctx.fillStyle = '#3b82f6'; ctx.fillRect(startX - 20, bottomY + 5, 40, 15); // Kutub -
+            ctx.fillStyle = '#ffffff'; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; ctx.fillText(V+"V", startX, bottomY - 10);
+
+            // DRAW SWITCH (Kanan Bawah Baterai)
+            let swX = startX + 50; let swY = bottomY;
+            ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(swX - 15, swY, 5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(swX + 15, swY, 5, 0, Math.PI*2); ctx.fill();
+            
+            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 4; ctx.beginPath();
+            ctx.moveTo(swX - 15, swY);
+            if(isPowerOn && !isFuseBlown) {
+                ctx.lineTo(swX + 15, swY); // Closed
+            } else {
+                ctx.lineTo(swX + 10, swY - 20); // Open
+            }
+            ctx.stroke();
+
+            // Lanjutkan Animasi
+            animFrame = requestAnimationFrame(drawArena);
+        }
+
+        function drawBulb(x, y, bulbData) {
+            // Socket Base
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(x - 15, y + 10, 30, 15);
+            
+            // Calculate Glow & Color based on Power (P)
+            // Asumsi bohlam optimal di 10W (Sangat Terang)
+            let brightness = 0;
+            if(isPowerOn && !isFuseBlown) {
+                brightness = Math.min(1.0, bulbData.P / 15.0); // Capped at 1.0 (15 Watt max visually)
+            }
+
+            // Outer Glow
+            if(brightness > 0.05) {
+                let grad = ctx.createRadialGradient(x, y, 0, x, y, 50 * brightness + 20);
+                grad.addColorStop(0, `rgba(253, 224, 71, ${brightness})`);
+                grad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.arc(x, y, 70, 0, Math.PI*2); ctx.fill();
+            }
+
+            // Glass Bulb
+            ctx.fillStyle = brightness > 0.05 ? '#fef08a' : '#cbd5e1';
+            if(isFuseBlown) ctx.fillStyle = '#1e293b'; // Mati total / gosong
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 18, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke();
+            
+            // Info Text on Bulb
+            ctx.fillStyle = '#0f172a'; ctx.font = "bold 10px monospace"; ctx.textAlign = 'center';
+            ctx.fillText(bulbData.R + "Ω", x, y + 3);
+        }
+
+        // --- DATA RECORDING ---
+        function recordData() {
+            if(!isPowerOn || isFuseBlown) return alert("Nyalakan sirkuit tanpa memutuskan sekring untuk mencatat data!");
+            
+            // Simpan ke Chart
+            let datasetIndex = topology === 'series' ? 0 : 1;
+            chartVI.data.datasets[datasetIndex].data.push({ x: V, y: I_tot });
+            // Sort agar garis chart lurus
+            chartVI.data.datasets[datasetIndex].data.sort((a,b) => a.x - b.x);
+            chartVI.update();
+
+            // Simpan ke Tabel
+            const row = `<tr>
+                <td class="p-2 border-b border-slate-700/50 uppercase font-bold ${topology === 'series' ? 'text-blue-400' : 'text-orange-400'}">${topology}</td>
+                <td class="p-2 border-b border-slate-700/50 text-yellow-400">${V.toFixed(1)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-red-400">${R_eq.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-blue-400 font-bold">${I_tot.toFixed(2)}</td>
+                <td class="p-2 border-b border-slate-700/50 text-emerald-400">${P_tot.toFixed(1)}</td>
+            </tr>`;
+            
+            // Hapus pesan kosong
+            if(dataHistory.length === 0) document.getElementById('tableBody').innerHTML = '';
+            document.getElementById('tableBody').insertAdjacentHTML('afterbegin', row);
+            
+            dataHistory.push([topology.toUpperCase(), V.toFixed(1), R_eq.toFixed(2), I_tot.toFixed(2), P_tot.toFixed(1)]);
+        }
+
+        function exportToPDF() {
+            if(dataHistory.length === 0) return alert("Belum ada data! Lakukan pengukuran terlebih dahulu.");
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Laporan Lab: Rangkaian Listrik", 14, 20);
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Pembuktian Hukum Ohm dan Karakteristik Rangkaian Seri-Paralel.", 14, 28);
+            
+            doc.autoTable({ startY: 35, head: [['Topologi', 'Tegangan V (Volt)', 'Hambatan Total R (Ohm)', 'Arus Total I (A)', 'Daya P (W)']], body: dataHistory.reverse(), theme: 'grid', headStyles: { fillColor: [15, 23, 42] } });
+            
+            doc.save("Laporan_Rangkaian_Listrik.pdf");
+        }
+
+        // Init App
+        renderBulbSliders();
+        initCharts();
+        updatePhysics();
+        drawArena(); // Mulai loop animasi canvas
+    </script>
+</body>
+</html>
