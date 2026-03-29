@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tap Gerbang (Kamera) - SekolahDigi</title>
+    <title>Tap Gerbang & Manual - SekolahDigi</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -13,20 +14,69 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script src="https://unpkg.com/html5-qrcode"></script>
-    
 
     <link rel="stylesheet" href="scanner.css">
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        #reader video { border-radius: 1rem; object-fit: cover; }
+        #reader { border: none !important; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center pt-6 pb-6 px-4">
     
-    <div class="text-center w-full max-w-md">
-        <h1 class="text-3xl md:text-4xl font-black mb-2 tracking-tight text-blue-400">ABSENSI KAMERA</h1>
-        <p class="text-slate-400 text-sm md:text-base mb-6">Arahkan Kamera ke QR Code / Barcode NISN</p>
+    <div class="w-full max-w-md flex items-center justify-between mb-6">
+        <button onclick="goBack()" class="p-2.5 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-xl transition flex items-center justify-center shadow-lg">
+            <i data-lucide="arrow-left" width="20"></i>
+        </button>
+        <div id="clockDisplay" class="font-mono text-emerald-400 font-bold text-lg bg-slate-800 px-4 py-2 rounded-xl border border-slate-700 shadow-inner">
+            00:00:00
+        </div>
+    </div>
+
+    <div class="text-center w-full max-w-md mb-6">
+        <h1 class="text-3xl md:text-4xl font-black mb-2 tracking-tight text-blue-400">POS GERBANG</h1>
+        <p class="text-slate-400 text-sm md:text-base">Sistem Presensi Kedatangan Siswa</p>
+    </div>
+
+    <div class="flex bg-slate-800 p-1.5 rounded-xl border border-slate-700 shadow-lg w-full max-w-md mb-6">
+        <button onclick="switchMode('scanner')" id="tabScanner" class="flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 bg-blue-600 text-white shadow-md">
+            <i data-lucide="scan-line" width="18"></i> Kamera
+        </button>
+        <button onclick="switchMode('manual')" id="tabManual" class="flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 text-slate-400 hover:text-slate-200">
+            <i data-lucide="users" width="18"></i> Manual
+        </button>
+    </div>
+
+    <div id="areaScanner" class="w-full max-w-md flex flex-col items-center animate-fade-in">
+        <div class="w-full bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 mb-6 relative aspect-square flex items-center justify-center">
+            <div id="reader" class="w-full h-full"></div>
+            
+            <div id="kameraLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 text-white z-10 hidden">
+                <i data-lucide="loader-2" class="animate-spin mb-2 text-blue-400" width="32" height="32"></i>
+                <p class="font-bold text-sm">Menyiapkan Kamera...</p>
+            </div>
+        </div>
         
-        <div id="reader" class="w-full bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700 mb-6"></div>
-        
-        <div id="scanResult" class="scan-box-default mx-auto">
-            <div class="text-slate-500 animate-pulse font-medium">Kamera Siap...</div>
+        <div id="scanResult" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 min-h-[90px] flex flex-col items-center justify-center transition-all shadow-lg text-center">
+            <div class="text-slate-400 text-xs uppercase font-bold tracking-widest flex items-center gap-2"><i data-lucide="qr-code" width="16"></i> Kamera Siap...</div>
+        </div>
+    </div>
+
+    <div id="areaManual" class="w-full max-w-md hidden flex-col animate-fade-in h-[60vh]">
+        <div class="relative mb-4">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i data-lucide="search" class="text-slate-400" width="18"></i>
+            </div>
+            <input type="text" id="searchInput" onkeyup="filterStudents()" placeholder="Cari nama atau NISN..." class="w-full pl-10 pr-4 py-3 border border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow font-medium bg-slate-800 text-white placeholder-slate-500">
+        </div>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2" id="studentListContainer">
+            <div class="p-8 text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                <i data-lucide="loader-2" class="animate-spin mb-2" width="32"></i>
+                <p>Memuat daftar kelas...</p>
+            </div>
         </div>
     </div>
 

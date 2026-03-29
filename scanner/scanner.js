@@ -1,166 +1,288 @@
-// --- 1. INISIALISASI FIREBASE ---
+// --- 1. FIREBASE CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyBWp0bTZLKoE4LMLTAj7uF4hWjrjGF19Tk",
     authDomain: "school-dashboard-trial.firebaseapp.com",
     projectId: "school-dashboard-trial",
     storageBucket: "school-dashboard-trial.firebasestorage.app",
+    messagingSenderId: "125925153098",
+    appId: "1:125925153098:web:820250f29a9871538709b3"
 };
 
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+// Initialize Firebase
+try { if (!firebase.apps.length) firebase.initializeApp(firebaseConfig); } catch (e) { console.error(e); }
 const db = firebase.firestore();
-const auth = firebase.auth(); // <-- Tambahan Auth
 
-const resultBox = document.getElementById('scanResult');
-let isProcessing = false; 
+// --- 2. STATE & VARIABLES ---
+let html5QrcodeScanner = null;
+let isScannerRunning = false;
 
-// --- 2. LOGIKA SCANNER KAMERA ---
-let html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader",
-    { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-        disableFlip: false 
-    },
-    false
-);
+let allStudents = [];
+let teacherData = null;
+let isWaliKelas = false;
+let homeroomClass = "";
 
-function onScanSuccess(decodedText, decodedResult) {
-    if (isProcessing) return; 
-    const nisnScanned = decodedText.trim();
-    if(nisnScanned) processAttendance(nisnScanned);
-}
+// Waktu Live (Jam)
+setInterval(() => {
+    const now = new Date();
+    const clockEl = document.getElementById('clockDisplay');
+    if(clockEl) clockEl.innerText = now.toLocaleTimeString('id-ID', { hour12: false });
+}, 1000);
 
-function onScanFailure(error) { /* Abaikan frame kosong */ }
+// --- 3. INIT APLIKASI ---
+document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
 
-// --- 3. SISTEM KEAMANAN & LOGIN (BARU) ---
-// Kamera HANYA akan menyala jika pengguna sudah terautentikasi
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        // Izin Diberikan -> Nyalakan Kamera!
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    } else {
-        // Belum Login -> Munculkan Pop-up Login
-        Swal.fire({
-            title: 'Akses Scanner Gerbang',
-            text: 'Silakan login menggunakan akun Admin atau Guru untuk menyalakan mesin scanner.',
-            html: `
-                <input type="email" id="scanEmail" class="swal2-input" placeholder="Email Akun">
-                <input type="password" id="scanPass" class="swal2-input" placeholder="Kata Sandi">
-            `,
-            confirmButtonText: 'Aktifkan Kamera',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            preConfirm: () => {
-                const e = document.getElementById('scanEmail').value;
-                const p = document.getElementById('scanPass').value;
-                if(!e || !p) Swal.showValidationMessage('Isi email dan kata sandi!');
-                return {e, p};
-            }
-        }).then(async (res) => {
-            if(res.isConfirmed) {
-                Swal.fire({ title: 'Menghubungkan...', didOpen: () => Swal.showLoading() });
-                try {
-                    await auth.signInWithEmailAndPassword(res.value.e, res.value.p);
-                    Swal.fire('Akses Diberikan!', 'Kamera siap digunakan.', 'success');
-                } catch(err) {
-                    Swal.fire('Akses Ditolak', 'Kredensial salah.', 'error').then(()=> window.location.reload());
-                }
-            }
-        });
+    const container = document.getElementById('studentListContainer');
+    if (container) {
+        container.innerHTML = `<div class="p-8 text-center text-blue-400"><i data-lucide="loader-2" class="animate-spin mx-auto mb-2"></i> Verifikasi Sesi Login...</div>`;
+        lucide.createIcons();
     }
+
+    // Tunggu verifikasi tiket login dari Dashboard
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            try {
+                const snap = await db.collection("teachers").where("uid", "==", user.uid).get();
+                if (!snap.empty) {
+                    teacherData = snap.docs[0].data();
+                    if(teacherData.homeroomClass) {
+                        isWaliKelas = true;
+                        homeroomClass = teacherData.homeroomClass;
+                    }
+                }
+            } catch (err) {
+                console.warn("Gagal mengambil data guru:", err);
+            }
+            
+            // Tiket aman, tarik data siswa
+            fetchStudents();
+            startScanner();
+            
+        } else {
+            Swal.fire({
+                title: 'Akses Ditolak',
+                text: 'Sesi login tidak ditemukan. Harap login melalui Dashboard.',
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            }).then(() => {
+                goBack();
+            });
+        }
+    });
 });
 
-// --- 4. LOGIKA UTAMA ABSENSI ---
-async function processAttendance(nisn) {
-    isProcessing = true; 
-    resultBox.innerHTML = `<div class="text-blue-400 font-bold text-xl animate-pulse">Mencari Data...</div>`;
-    resultBox.className = "scan-box-processing";
+function goBack() {
+    if(html5QrcodeScanner) html5QrcodeScanner.clear(); 
+    window.location.href = '../teacher.html'; 
+}
 
-    try {
-        const snapshot = await db.collection('students').where('nisn', '==', nisn).get();
+// --- 4. TAB NAVIGATION (DUAL MODE) ---
+function switchMode(mode) {
+    const btnScan = document.getElementById('tabScanner');
+    const btnManual = document.getElementById('tabManual');
+    const areaScan = document.getElementById('areaScanner');
+    const areaManual = document.getElementById('areaManual');
+
+    if (mode === 'scanner') {
+        btnScan.className = "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 bg-blue-600 text-white shadow-md";
+        btnManual.className = "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 text-slate-400 hover:text-slate-200 bg-slate-800";
         
-        if (snapshot.empty) {
-            resultBox.innerHTML = `
-                <div class="text-red-500 font-bold text-3xl mb-2">❌</div>
-                <div class="text-white font-bold text-lg">Siswa Tidak Ditemukan</div>
-                <p class="text-slate-400 mt-1 font-mono text-sm">NISN: ${nisn}</p>
-            `;
-            resultBox.className = "scan-box-error";
-            playAudio('error');
-            setTimeout(() => resetBox(), 3500);
-            return;
-        }
-
-        const student = snapshot.docs[0].data();
-        const studentId = snapshot.docs[0].id;
+        areaScan.style.display = "flex";
+        areaManual.style.display = "none";
         
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const timeNow = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-        const checkAtt = await db.collection('attendance')
-            .where('studentId', '==', studentId)
-            .where('date', '==', todayStr)
-            .where('type', '==', 'Gerbang')
-            .get();
-
-        if (!checkAtt.empty) {
-            resultBox.innerHTML = `
-                <div class="text-orange-500 font-bold text-3xl mb-2">⚠️</div>
-                <div class="text-white font-bold text-lg">${student.fullName}</div>
-                <p class="text-orange-400 text-sm mt-1">Sudah Absen Hari Ini</p>
-            `;
-            resultBox.className = "scan-box-error"; 
-            playAudio('error');
-        } else {
-            await db.collection('attendance').add({
-                studentId: studentId,
-                studentName: student.fullName,
-                class: student.kelas,
-                date: todayStr,
-                time: timeNow,
-                status: 'Hadir',
-                type: 'Gerbang',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            resultBox.innerHTML = `
-                <div class="text-green-500 text-4xl mb-2">✅</div>
-                <h2 class="text-xl font-bold text-white mb-1 line-clamp-1 text-center w-full">${student.fullName}</h2>
-                <p class="text-green-400 font-black text-2xl tracking-widest">${timeNow} WIB</p>
-                <p class="text-slate-400 text-xs mt-2 font-bold uppercase tracking-wider">Kelas ${student.kelas}</p>
-            `;
-            resultBox.className = "scan-box-success";
-            playAudio('success');
+        if(!isScannerRunning) startScanner();
+        
+    } else {
+        btnManual.className = "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 bg-blue-600 text-white shadow-md";
+        btnScan.className = "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex justify-center items-center gap-2 text-slate-400 hover:text-slate-200 bg-slate-800";
+        
+        areaManual.style.display = "flex";
+        areaScan.style.display = "none";
+        
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.clear().then(() => { isScannerRunning = false; }).catch(err => console.log(err));
         }
-        setTimeout(() => resetBox(), 3500);
+        
+        document.getElementById('searchInput').value = "";
+        renderManualList(allStudents); 
+    }
+    lucide.createIcons();
+}
 
-    } catch (error) {
-        // JIKA MASIH ERROR, KITA TAMPILKAN PESAN ERROR ASLINYA DI LAYAR
-        console.error("Error Absensi:", error);
-        resultBox.innerHTML = `
-            <div class="text-red-500 font-bold text-xl">Koneksi Error</div>
-            <p class="text-xs text-slate-400 mt-2 text-center px-4">${error.message}</p>
-        `;
-        resultBox.className = "scan-box-error";
-        setTimeout(() => resetBox(), 5000);
+// --- 5. LOGIKA SCANNER (KAMERA) ---
+function startScanner() {
+    const loadingEl = document.getElementById('kameraLoading');
+    if(loadingEl) loadingEl.classList.remove('hidden');
+    
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    isScannerRunning = true;
+    
+    setTimeout(() => { if(loadingEl) loadingEl.classList.add('hidden'); }, 1500);
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    const searchId = decodedText.trim();
+    const student = allStudents.find(s => s.nisn === searchId || s.id === searchId);
+    const resBox = document.getElementById('scanResult');
+    
+    if (student) {
+        html5QrcodeScanner.pause(true);
+        resBox.className = "w-full bg-emerald-900/30 border border-emerald-500/50 rounded-xl p-4 min-h-[90px] flex flex-col items-center justify-center transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] text-center";
+        resBox.innerHTML = `<div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-2 shadow-lg"><i data-lucide="check" width="24"></i></div><p class="font-black text-emerald-400 text-lg">${student.fullName || 'Tanpa Nama'}</p><p class="text-emerald-500/80 text-xs font-bold mt-1">Kelas ${student.kelas || '-'} | NISN: ${student.nisn || '-'}</p>`;
+        lucide.createIcons();
+        saveAttendance(student.id, student.fullName, student.kelas, 'Hadir', 'Scanner Kamera');
+
+        setTimeout(() => {
+            resBox.className = "w-full bg-slate-800 border border-slate-700 rounded-xl p-4 min-h-[90px] flex flex-col items-center justify-center transition-all shadow-lg text-center";
+            resBox.innerHTML = `<div class="text-slate-400 text-xs uppercase font-bold tracking-widest flex items-center gap-2"><i data-lucide="qr-code" width="16"></i> Menunggu Scan...</div>`;
+            lucide.createIcons();
+            if(isScannerRunning) html5QrcodeScanner.resume();
+        }, 2500);
+    } else {
+        html5QrcodeScanner.pause(true);
+        resBox.className = "w-full bg-red-900/30 border border-red-500/50 rounded-xl p-4 min-h-[90px] flex flex-col items-center justify-center transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] text-center";
+        resBox.innerHTML = `<div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white mb-2 shadow-lg"><i data-lucide="x" width="24"></i></div><p class="font-black text-red-400 text-lg">Tidak Dikenali!</p><p class="text-red-500/80 text-xs font-bold mt-1">Kode: ${searchId}</p>`;
+        lucide.createIcons();
+
+        setTimeout(() => {
+            resBox.className = "w-full bg-slate-800 border border-slate-700 rounded-xl p-4 min-h-[90px] flex flex-col items-center justify-center transition-all shadow-lg text-center";
+            resBox.innerHTML = `<div class="text-slate-400 text-xs uppercase font-bold tracking-widest flex items-center gap-2"><i data-lucide="qr-code" width="16"></i> Menunggu Scan...</div>`;
+            lucide.createIcons();
+            if(isScannerRunning) html5QrcodeScanner.resume();
+        }, 2000);
     }
 }
 
-// --- 5. FUNGSI PENDUKUNG ---
-function resetBox() {
-    resultBox.innerHTML = `<div class="text-slate-500 animate-pulse font-medium text-lg">Siap Scan Berikutnya...</div>`;
-    resultBox.className = "scan-box-default";
-    isProcessing = false; 
+function onScanFailure(error) { /* Abaikan */ }
+
+// --- 6. LOGIKA PENCARIAN MANUAL ---
+function fetchStudents() {
+    db.collection("students").get().then((snap) => {
+        allStudents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        allStudents.sort((a, b) => {
+            let namaA = (a.fullName || a.name || a.nama || "").toLowerCase();
+            let namaB = (b.fullName || b.name || b.nama || "").toLowerCase();
+            return namaA.localeCompare(namaB);
+        });
+
+        // (Opsional) Hapus komentar di bawah ini jika ingin ada notifikasi sukses
+        // Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: `Data ${allStudents.length} siswa dimuat!` });
+        
+        renderManualList(allStudents);
+    }).catch(err => {
+        document.getElementById('studentListContainer').innerHTML = `<p class="text-red-500 p-4 text-center">Gagal memuat data: ${err.message}</p>`;
+    });
 }
 
-function playAudio(type) {
-    let url = '';
-    if (type === 'success') url = 'https://www.soundjay.com/buttons/sounds/button-09.mp3';
-    else if (type === 'error') url = 'https://www.soundjay.com/buttons/sounds/button-10.mp3';
-    if (url) {
-        const audio = new Audio(url);
-        audio.play().catch(e => console.log("Audio diabaikan browser:", e));
+function renderManualList(dataList) {
+    const container = document.getElementById('studentListContainer');
+    
+    if(dataList.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-slate-500 mt-10">
+                <i data-lucide="search-x" class="mb-2" width="32"></i>
+                <p class="text-sm font-medium">Tidak ada siswa ditemukan.</p>
+            </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = dataList.map(s => {
+        const nama = s.fullName || s.name || s.nama || "Tanpa Nama";
+        const nisn = s.nisn || "-";
+        const kelas = s.kelas || "-";
+        const safeName = nama.replace(/'/g, "\\'");
+
+        return `
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-3 shadow-md">
+            <div class="flex justify-between items-start mb-3 border-b border-slate-700/50 pb-3">
+                <div>
+                    <h3 class="font-bold text-white text-sm md:text-base">${nama}</h3>
+                    <p class="text-xs text-slate-400 font-mono mt-1">NISN: ${nisn} <span class="mx-1 text-slate-600">|</span> Kelas: <span class="text-blue-400 font-bold">${kelas}</span></p>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="saveManualAttendance('${s.id}', '${safeName}', '${kelas}', 'Hadir', this)" class="py-2 text-xs font-bold rounded-lg border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white transition shadow-sm">Hadir</button>
+                <button onclick="saveManualAttendance('${s.id}', '${safeName}', '${kelas}', 'Sakit', this)" class="py-2 text-xs font-bold rounded-lg border border-orange-500/30 text-orange-400 bg-orange-500/10 hover:bg-orange-500 hover:text-white transition shadow-sm">Sakit</button>
+                <button onclick="saveManualAttendance('${s.id}', '${safeName}', '${kelas}', 'Izin', this)" class="py-2 text-xs font-bold rounded-lg border border-blue-500/30 text-blue-400 bg-blue-500/10 hover:bg-blue-600 hover:text-white transition shadow-sm">Izin</button>
+                <button onclick="saveManualAttendance('${s.id}', '${safeName}', '${kelas}', 'Alpha', this)" class="py-2 text-xs font-bold rounded-lg border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-600 hover:text-white transition shadow-sm">Alpha</button>
+            </div>
+        </div>`;
+    }).join('');
+    
+    lucide.createIcons();
+}
+
+function filterStudents() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    
+    const filtered = allStudents.filter(s => {
+        const namaSiswa = (s.fullName || s.name || s.nama || "").toLowerCase();
+        const nisnSiswa = (s.nisn || "").toLowerCase();
+        return namaSiswa.includes(query) || nisnSiswa.includes(query);
+    });
+    
+    renderManualList(filtered);
+}
+
+// --- 7. DATABASE SAVING ---
+async function saveManualAttendance(id, name, kelas, status, btnElement) {
+    const originalText = btnElement.innerText;
+    const originalClass = btnElement.className;
+    
+    btnElement.innerHTML = `<i data-lucide="loader-2" class="animate-spin inline w-4 h-4"></i>`;
+    btnElement.classList.add('opacity-80', 'cursor-not-allowed');
+    lucide.createIcons();
+    
+    await saveAttendance(id, name, kelas, status, 'Pencarian Manual');
+    
+    btnElement.innerText = "Tersimpan!";
+    btnElement.className = "py-2 text-xs font-bold rounded-lg bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)] transition";
+    
+    setTimeout(() => {
+        btnElement.innerText = originalText;
+        btnElement.className = originalClass;
+    }, 2000);
+}
+
+async function saveAttendance(studentId, studentName, studentClass, status, method) {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+    try {
+        const existingSnap = await db.collection("attendance")
+            .where("studentId", "==", studentId)
+            .where("date", "==", dateStr)
+            .where("type", "==", "Gerbang")
+            .get();
+
+        if (!existingSnap.empty) {
+            const docId = existingSnap.docs[0].id;
+            await db.collection("attendance").doc(docId).update({
+                status: status,
+                time: timeStr,
+                method: method,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            await db.collection("attendance").add({
+                studentId: studentId,
+                studentName: studentName,
+                class: studentClass || "Umum",
+                date: dateStr,
+                time: timeStr,
+                status: status,
+                type: 'Gerbang', 
+                method: method, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error("Error saving attendance:", error);
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 })
+            .fire({ icon: 'error', title: `Gagal menyimpan absen ${studentName}` });
     }
 }
